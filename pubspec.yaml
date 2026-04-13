@@ -43,8 +43,9 @@ dependencies:
 
   # Auth extras
   google_sign_in: ^6.2.1
-  sign_in_with_apple: ^6.1.2
+  flutter_facebook_auth: ^7.1.1
   local_auth: ^2.3.0
+  permission_handler: ^11.3.1
 
 dev_dependencies:
   flutter_test:

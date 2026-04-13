@@ -97,7 +97,7 @@ class BookingRepository {
   final SupabaseClient _client;
 
   Future<Booking> create({
-    required String serviceId,
+    String? serviceId,
     String? vendorId,
     required DateTime eventDate,
     required int guestCount,
@@ -110,12 +110,12 @@ class BookingRepository {
         .from('bookings')
         .insert({
           'client_id': uid,
-          'service_id': serviceId,
-          'vendor_id': vendorId,
+          if (serviceId != null && serviceId.isNotEmpty) 'service_id': serviceId,
+          if (vendorId != null) 'vendor_id': vendorId,
           'event_date': eventDate.toIso8601String().substring(0, 10),
           'guest_count': guestCount,
           'venue': venue,
-          'notes': notes,
+          if (notes != null && notes.isNotEmpty) 'notes': notes,
           'total_amount': totalAmount,
           'status': 'pending',
         })

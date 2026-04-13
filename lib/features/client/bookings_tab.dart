@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/data/repositories.dart';
 import '../../core/models/models.dart';
@@ -86,6 +87,24 @@ class _BookingCard extends StatelessWidget {
                       style: const TextStyle(color: AppColors.success)),
               ],
             ),
+            if (b.status == BookingStatus.completed && b.vendorId != null) ...[
+              const SizedBox(height: 8),
+              Builder(builder: (ctx) => OutlinedButton.icon(
+                    onPressed: () =>
+                        ctx.push('/review/${b.id}/${b.vendorId}'),
+                    icon: const Icon(Icons.star_outline),
+                    label: const Text('Rate Vendor'),
+                  )),
+            ],
+            if (b.vendorId != null) ...[
+              const SizedBox(height: 8),
+              Builder(builder: (ctx) => TextButton.icon(
+                    onPressed: () =>
+                        ctx.push('/chat/${b.id}/${b.vendorId}'),
+                    icon: const Icon(Icons.chat_bubble_outline),
+                    label: const Text('Message Vendor'),
+                  )),
+            ],
           ],
         ),
       ),

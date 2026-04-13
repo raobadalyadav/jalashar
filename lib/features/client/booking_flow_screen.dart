@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/data/extra_repositories.dart';
 import '../../core/data/repositories.dart';
 import '../../core/models/models.dart';
 import '../../core/theme/app_theme.dart';
@@ -46,6 +47,11 @@ class _BookingFlowScreenState extends ConsumerState<BookingFlowScreen> {
           padding: const EdgeInsets.only(top: 16),
           child: Row(children: [
             FilledButton(
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(140, 48),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
               onPressed: _submitting ? null : d.onStepContinue,
               child: Text(_step == 3 ? 'Pay & Confirm' : 'Next'),
             ),
@@ -166,11 +172,12 @@ class _BookingFlowScreenState extends ConsumerState<BookingFlowScreen> {
   }
 
   Future<void> _submit() async {
-    if (widget.service == null) return;
+    if (widget.service == null && widget.vendor == null) return;
     setState(() => _submitting = true);
     try {
-      await ref.read(bookingRepoProvider).create(
-            serviceId: widget.service!.id,
+      // 1. Create booking row (status = pending)
+      final booking = await ref.read(bookingRepoProvider).create(
+            serviceId: widget.service?.id ?? '',
             vendorId: widget.vendor?.id,
             eventDate: _date!,
             guestCount: int.tryParse(_guests.text) ?? 0,
@@ -178,10 +185,21 @@ class _BookingFlowScreenState extends ConsumerState<BookingFlowScreen> {
             notes: _notes.text,
             totalAmount: _total,
           );
+
+      // 2. Create Razorpay order via Edge Function (30% advance)
+      final advance = _total * 0.3;
+      await ref.read(paymentRepoProvider).createOrder(
+            bookingId: booking.id,
+            amount: advance,
+          );
+
       ref.invalidate(myBookingsProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Booking confirmed!')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text(
+                  'Booking created. Complete payment to confirm.')),
+        );
         context.go('/home');
       }
     } catch (e) {

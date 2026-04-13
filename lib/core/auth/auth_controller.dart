@@ -1,3 +1,4 @@
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -32,21 +33,20 @@ class AppUser {
   });
 
   factory AppUser.fromRow(Map<String, dynamic> row) => AppUser(
-    id: row['id'] as String,
-    email: row['email'] as String?,
-    phone: row['phone'] as String?,
-    name: row['name'] as String?,
-    avatarUrl: row['avatar_url'] as String?,
-    role: UserRole.fromString(row['role'] as String?),
-    locale: (row['locale'] as String?) ?? 'en',
-  );
+        id: row['id'] as String,
+        email: row['email'] as String?,
+        phone: row['phone'] as String?,
+        name: row['name'] as String?,
+        avatarUrl: row['avatar_url'] as String?,
+        role: UserRole.fromString(row['role'] as String?),
+        locale: (row['locale'] as String?) ?? 'en',
+      );
 }
 
 final currentUserProvider = FutureProvider<AppUser?>((ref) async {
   final client = ref.watch(supabaseClientProvider);
   final authUser = client.auth.currentUser;
   if (authUser == null) return null;
-  // Re-fetch on auth changes
   ref.watch(authStateProvider);
   final row = await client
       .from('users')
@@ -61,18 +61,14 @@ class AuthController {
   AuthController(this._client);
   final SupabaseClient _client;
 
-  Future<void> signInWithEmail(String email, String password) =>
-      _client.auth.signInWithPassword(email: email, password: password);
+  // ===== Email OTP (passwordless, 6-digit code) =====
+  Future<void> sendEmailOtp(String email) =>
+      _client.auth.signInWithOtp(email: email, shouldCreateUser: true);
 
-  Future<void> signUpWithEmail(String email, String password) =>
-      _client.auth.signUp(email: email, password: password);
+  Future<AuthResponse> verifyEmailOtp(String email, String token) =>
+      _client.auth.verifyOTP(email: email, token: token, type: OtpType.email);
 
-  Future<void> sendPhoneOtp(String phone) =>
-      _client.auth.signInWithOtp(phone: phone);
-
-  Future<AuthResponse> verifyPhoneOtp(String phone, String token) =>
-      _client.auth.verifyOTP(phone: phone, token: token, type: OtpType.sms);
-
+  // ===== Google =====
   Future<AuthResponse> signInWithGoogle() async {
     final google = GoogleSignIn(scopes: ['email', 'profile']);
     final acct = await google.signIn();
@@ -88,13 +84,29 @@ class AuthController {
     );
   }
 
-  Future<bool> signInWithApple() =>
-      _client.auth.signInWithOAuth(OAuthProvider.apple);
+  // ===== Facebook =====
+  Future<AuthResponse> signInWithFacebook() async {
+    final result = await FacebookAuth.instance.login(
+      permissions: const ['email', 'public_profile'],
+    );
+    if (result.status != LoginStatus.success || result.accessToken == null) {
+      throw Exception('Facebook sign-in cancelled');
+    }
+    return _client.auth.signInWithIdToken(
+      provider: OAuthProvider.facebook,
+      idToken: result.accessToken!.tokenString,
+    );
+  }
 
-  Future<bool> signInWithFacebook() =>
-      _client.auth.signInWithOAuth(OAuthProvider.facebook);
-
-  Future<void> signOut() => _client.auth.signOut();
+  Future<void> signOut() async {
+    await _client.auth.signOut();
+    try {
+      await GoogleSignIn().signOut();
+    } catch (_) {}
+    try {
+      await FacebookAuth.instance.logOut();
+    } catch (_) {}
+  }
 
   Future<void> completeProfile({
     required String name,

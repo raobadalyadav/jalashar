@@ -1,11 +1,17 @@
+import 'dart:io';
+
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/auth/auth_controller.dart';
+import '../../core/data/extra_repositories.dart';
 import '../../core/data/repositories.dart';
 import '../../core/models/models.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/permissions.dart';
 
 class VendorShell extends ConsumerStatefulWidget {
   const VendorShell({super.key});
@@ -190,18 +196,54 @@ class _VendorProfileState extends ConsumerState<_VendorProfile> {
   final _bio = TextEditingController();
   final _city = TextEditingController();
   final _price = TextEditingController();
+  final List<String> _portfolio = [];
+  bool _loading = false;
+
+  Future<void> _addPhoto() async {
+    if (!await AppPermissions.photos()) return;
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1600,
+      imageQuality: 80,
+    );
+    if (picked == null) return;
+    setState(() => _loading = true);
+    try {
+      final url = await ref
+          .read(storageRepoProvider)
+          .uploadPortfolio(File(picked.path));
+      setState(() => _portfolio.add(url));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Upload failed: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   Future<void> _save() async {
-    await ref.read(vendorRepoProvider).upsertMyVendor(
-          category: _category.text,
-          bio: _bio.text,
-          city: _city.text,
-          basePrice: double.tryParse(_price.text) ?? 0,
-          portfolioUrls: const [],
-        );
-    if (mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Profile saved')));
+    setState(() => _loading = true);
+    try {
+      await ref.read(vendorRepoProvider).upsertMyVendor(
+            category: _category.text,
+            bio: _bio.text,
+            city: _city.text,
+            basePrice: double.tryParse(_price.text) ?? 0,
+            portfolioUrls: _portfolio,
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Profile saved')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -212,24 +254,76 @@ class _VendorProfileState extends ConsumerState<_VendorProfile> {
       children: [
         TextField(
             controller: _category,
-            decoration: const InputDecoration(labelText: 'Category (photographer, dj...)')),
+            decoration: const InputDecoration(
+                labelText: 'Category (photographer, dj, caterer...)')),
         const SizedBox(height: 12),
         TextField(
             controller: _bio,
             maxLines: 3,
-            decoration: const InputDecoration(labelText: 'About')),
+            decoration: const InputDecoration(labelText: 'About your business')),
         const SizedBox(height: 12),
         TextField(
-            controller: _city,
-            decoration: const InputDecoration(labelText: 'City')),
+            controller: _city, decoration: const InputDecoration(labelText: 'City')),
         const SizedBox(height: 12),
         TextField(
           controller: _price,
           keyboardType: TextInputType.number,
           decoration: const InputDecoration(labelText: 'Base Price (₹)'),
         ),
-        const SizedBox(height: 20),
-        FilledButton(onPressed: _save, child: const Text('Save Profile')),
+        const SizedBox(height: 24),
+        Row(
+          children: [
+            Text('Portfolio (${_portfolio.length})',
+                style: Theme.of(context).textTheme.titleMedium),
+            const Spacer(),
+            TextButton.icon(
+              onPressed: _loading ? null : _addPhoto,
+              icon: const Icon(Icons.add_a_photo),
+              label: const Text('Add'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (_portfolio.isNotEmpty)
+          SizedBox(
+            height: 100,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _portfolio.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (_, i) => Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: CachedNetworkImage(
+                      imageUrl: _portfolio[i],
+                      width: 100,
+                      height: 100,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  Positioned(
+                    top: 2,
+                    right: 2,
+                    child: IconButton.filled(
+                      iconSize: 14,
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.black54,
+                        padding: const EdgeInsets.all(4),
+                      ),
+                      icon: const Icon(Icons.close, size: 14),
+                      onPressed: () => setState(() => _portfolio.removeAt(i)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        const SizedBox(height: 24),
+        FilledButton(
+          onPressed: _loading ? null : _save,
+          child: Text(_loading ? '...' : 'Save Profile'),
+        ),
       ],
     );
   }

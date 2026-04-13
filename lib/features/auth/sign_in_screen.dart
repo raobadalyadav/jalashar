@@ -13,8 +13,6 @@ class SignInScreen extends ConsumerStatefulWidget {
 }
 
 class _SignInScreenState extends ConsumerState<SignInScreen> {
-  final _email = TextEditingController();
-  final _password = TextEditingController();
   bool _loading = false;
 
   Future<void> _run(Future<void> Function() action) async {
@@ -41,75 +39,65 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 32),
+              const SizedBox(height: 48),
+              Container(
+                width: 100,
+                height: 100,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [AppColors.saffron, AppColors.deepMaroon],
+                  ),
+                ),
+                child: const Icon(Icons.celebration,
+                    color: Colors.white, size: 52),
+              ),
+              const SizedBox(height: 24),
               Text('auth.welcome'.tr(),
+                  textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.w700, color: AppColors.deepMaroon)),
               const SizedBox(height: 8),
               Text('auth.subtitle'.tr(),
+                  textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyMedium),
-              const SizedBox(height: 32),
-              TextField(
-                controller: _email,
-                keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(
-                  hintText: 'auth.email'.tr(),
-                  prefixIcon: const Icon(Icons.mail_outline),
-                ),
+              const Spacer(),
+              _ProviderButton(
+                icon: Icons.mail_outline,
+                label: 'Continue with Email',
+                color: AppColors.deepMaroon,
+                onTap: _loading ? null : () => context.push('/auth/email-otp'),
               ),
               const SizedBox(height: 12),
-              TextField(
-                controller: _password,
-                obscureText: true,
-                decoration: InputDecoration(
-                  hintText: 'auth.password'.tr(),
-                  prefixIcon: const Icon(Icons.lock_outline),
-                ),
-              ),
-              const SizedBox(height: 20),
-              FilledButton(
-                onPressed: _loading
-                    ? null
-                    : () => _run(() =>
-                        auth.signInWithEmail(_email.text.trim(), _password.text)),
-                child: _loading
-                    ? const SizedBox(
-                        height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2))
-                    : Text('auth.sign_in'.tr()),
-              ),
-              const SizedBox(height: 24),
-              Row(children: [
-                const Expanded(child: Divider()),
-                Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text('auth.or'.tr())),
-                const Expanded(child: Divider()),
-              ]),
-              const SizedBox(height: 20),
               _ProviderButton(
                 icon: Icons.g_mobiledata,
-                label: 'auth.continue_google'.tr(),
-                onTap: () => _run(() => auth.signInWithGoogle()),
+                iconSize: 32,
+                label: 'Continue with Google',
+                color: const Color(0xFFDB4437),
+                onTap: _loading ? null : () => _run(() => auth.signInWithGoogle()),
               ),
               const SizedBox(height: 12),
               _ProviderButton(
-                icon: Icons.apple,
-                label: 'auth.continue_apple'.tr(),
-                onTap: () => _run(() async => auth.signInWithApple()),
+                icon: Icons.facebook,
+                label: 'Continue with Facebook',
+                color: const Color(0xFF1877F2),
+                onTap: _loading
+                    ? null
+                    : () async {
+                        try {
+                          await _run(() => auth.signInWithFacebook());
+                        } catch (_) {}
+                      },
               ),
-              const SizedBox(height: 12),
-              _ProviderButton(
-                icon: Icons.phone_android,
-                label: 'auth.continue_phone'.tr(),
-                onTap: () => context.push('/auth/phone'),
+              const SizedBox(height: 24),
+              if (_loading) const Center(child: CircularProgressIndicator()),
+              const SizedBox(height: 16),
+              Text(
+                'By continuing, you agree to our Terms & Privacy Policy.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
               ),
-              const Spacer(),
-              Center(
-                child: TextButton(
-                  onPressed: () {},
-                  child: Text('auth.no_account_signup'.tr()),
-                ),
-              ),
+              const SizedBox(height: 16),
             ],
           ),
         ),
@@ -119,16 +107,35 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
 }
 
 class _ProviderButton extends StatelessWidget {
-  const _ProviderButton({required this.icon, required this.label, required this.onTap});
+  const _ProviderButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+    this.iconSize = 22,
+  });
   final IconData icon;
   final String label;
-  final VoidCallback onTap;
+  final Color color;
+  final VoidCallback? onTap;
+  final double iconSize;
+
   @override
   Widget build(BuildContext context) {
-    return OutlinedButton.icon(
-      onPressed: onTap,
-      icon: Icon(icon, size: 24),
-      label: Text(label),
+    return SizedBox(
+      height: 54,
+      child: OutlinedButton.icon(
+        onPressed: onTap,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: color,
+          side: BorderSide(color: color.withOpacity(0.4)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+        icon: Icon(icon, size: iconSize, color: color),
+        label: Text(label,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+      ),
     );
   }
 }
