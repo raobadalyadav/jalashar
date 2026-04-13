@@ -1,17 +1,34 @@
-# jalashar
+# Jalaram Events
 
-A new Flutter project.
+Production-ready event & vendor management platform (Flutter + Supabase).
 
-## Getting Started
+## Quick Start
 
-This project is a starting point for a Flutter application.
+```bash
+flutter pub get
+cp .env.example .env         # fill Supabase URL + anon key
+supabase start && supabase db push
+flutter run
+```
 
-A few resources to get you started if this is your first Flutter project:
+## Stack
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+- **Mobile**: Flutter 3.24 · Riverpod · go_router · easy_localization
+- **Backend**: Supabase (Postgres + Auth + Storage + Realtime + Edge Functions)
+- **Auth**: Google · Apple · Facebook · Phone OTP · Email — role-based routing
+- **Roles**: `client`, `vendor`, `admin`, `super_admin`, `support` (JWT claim + RLS)
+- **i18n**: en · hi · gu · mr · ta
+- **Payments**: Razorpay
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Structure
+
+```
+lib/
+  core/       config, theme, auth, router
+  features/   auth, client, vendor, admin, onboarding
+supabase/
+  migrations/ schema + RLS + seed
+assets/i18n/  5 locales
+```
+
+See `.github/workflows/` for CI/CD pipelines. Tag `vX.Y.Z` to ship mobile releases.

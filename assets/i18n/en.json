@@ -1,0 +1,36 @@
+{
+  "common": { "continue": "Continue", "cancel": "Cancel", "save": "Save" },
+  "nav": { "home": "Home", "explore": "Explore", "bookings": "Bookings", "profile": "Profile" },
+  "auth": {
+    "welcome": "Welcome back",
+    "subtitle": "Plan unforgettable events with trusted vendors",
+    "email": "Email",
+    "password": "Password",
+    "sign_in": "Sign In",
+    "or": "or",
+    "continue_google": "Continue with Google",
+    "continue_apple": "Continue with Apple",
+    "continue_phone": "Continue with Phone",
+    "no_account_signup": "Don't have an account? Sign up",
+    "choose_role": "Choose your role",
+    "full_name": "Full name",
+    "role_client": "I'm a Client",
+    "role_client_desc": "Book vendors and plan events",
+    "role_vendor": "I'm a Vendor",
+    "role_vendor_desc": "Offer services and grow your business"
+  },
+  "home": {
+    "greeting": "Namaste 🙏",
+    "search_hint": "Search vendors, services, cities",
+    "categories": "Event Categories",
+    "trending_vendors": "Trending Vendors",
+    "banner_title": "Your Dream Event Awaits",
+    "banner_sub": "End-to-end planning from ₹25,000",
+    "book_now": "Book Now",
+    "cat_wedding": "Wedding",
+    "cat_birthday": "Birthday",
+    "cat_corporate": "Corporate",
+    "cat_engagement": "Engagement",
+    "cat_festival": "Festival"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "common": { "continue": "ચાલુ રાખો", "cancel": "રદ કરો", "save": "સાચવો" },
+  "nav": { "home": "હોમ", "explore": "શોધો", "bookings": "બુકિંગ", "profile": "પ્રોફાઇલ" },
+  "auth": {
+    "welcome": "પાછા આવવા બદલ આભાર",
+    "subtitle": "વિશ્વસનીય વિક્રેતાઓ સાથે યાદગાર ઇવેન્ટ",
+    "email": "ઇમેઇલ",
+    "password": "પાસવર્ડ",
+    "sign_in": "સાઇન ઇન",
+    "or": "અથવા",
+    "continue_google": "Google સાથે આગળ વધો",
+    "continue_apple": "Apple સાથે આગળ વધો",
+    "continue_phone": "ફોનથી આગળ વધો",
+    "no_account_signup": "ખાતું નથી? સાઇન અપ કરો",
+    "choose_role": "તમારી ભૂમિકા પસંદ કરો",
+    "full_name": "પૂરું નામ",
+    "role_client": "હું ગ્રાહક છું",
+    "role_client_desc": "વિક્રેતાઓ બુક કરો અને ઇવેન્ટ્સ પ્લાન કરો",
+    "role_vendor": "હું વિક્રેતા છું",
+    "role_vendor_desc": "સેવાઓ આપો અને વ્યવસાય વધારો"
+  },
+  "home": {
+    "greeting": "નમસ્તે 🙏",
+    "search_hint": "વિક્રેતાઓ, સેવાઓ, શહેરો શોધો",
+    "categories": "ઇવેન્ટ શ્રેણીઓ",
+    "trending_vendors": "ટ્રેન્ડિંગ વિક્રેતાઓ",
+    "banner_title": "તમારી સપનાની ઇવેન્ટ",
+    "banner_sub": "₹25,000 થી સંપૂર્ણ આયોજન",
+    "book_now": "હવે બુક કરો",
+    "cat_wedding": "લગ્ન",
+    "cat_birthday": "જન્મદિવસ",
+    "cat_corporate": "કોર્પોરેટ",
+    "cat_engagement": "સગાઈ",
+    "cat_festival": "તહેવાર"
+  }
+}

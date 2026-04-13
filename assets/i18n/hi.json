@@ -1,0 +1,36 @@
+{
+  "common": { "continue": "जारी रखें", "cancel": "रद्द करें", "save": "सहेजें" },
+  "nav": { "home": "होम", "explore": "खोजें", "bookings": "बुकिंग", "profile": "प्रोफ़ाइल" },
+  "auth": {
+    "welcome": "वापस स्वागत है",
+    "subtitle": "भरोसेमंद विक्रेताओं के साथ यादगार आयोजन",
+    "email": "ईमेल",
+    "password": "पासवर्ड",
+    "sign_in": "साइन इन",
+    "or": "या",
+    "continue_google": "Google से जारी रखें",
+    "continue_apple": "Apple से जारी रखें",
+    "continue_phone": "फ़ोन से जारी रखें",
+    "no_account_signup": "खाता नहीं है? साइन अप करें",
+    "choose_role": "अपनी भूमिका चुनें",
+    "full_name": "पूरा नाम",
+    "role_client": "मैं ग्राहक हूँ",
+    "role_client_desc": "विक्रेता बुक करें और आयोजन की योजना बनाएं",
+    "role_vendor": "मैं विक्रेता हूँ",
+    "role_vendor_desc": "सेवाएँ दें और व्यवसाय बढ़ाएँ"
+  },
+  "home": {
+    "greeting": "नमस्ते 🙏",
+    "search_hint": "विक्रेता, सेवाएँ, शहर खोजें",
+    "categories": "आयोजन श्रेणियाँ",
+    "trending_vendors": "ट्रेंडिंग विक्रेता",
+    "banner_title": "आपका सपनों का आयोजन",
+    "banner_sub": "₹25,000 से पूर्ण योजना",
+    "book_now": "बुक करें",
+    "cat_wedding": "शादी",
+    "cat_birthday": "जन्मदिन",
+    "cat_corporate": "कॉर्पोरेट",
+    "cat_engagement": "सगाई",
+    "cat_festival": "त्योहार"
+  }
+}

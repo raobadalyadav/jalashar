@@ -1,0 +1,36 @@
+{
+  "common": { "continue": "सुरू ठेवा", "cancel": "रद्द करा", "save": "जतन करा" },
+  "nav": { "home": "होम", "explore": "एक्सप्लोर", "bookings": "बुकिंग", "profile": "प्रोफाइल" },
+  "auth": {
+    "welcome": "पुन्हा स्वागत आहे",
+    "subtitle": "विश्वासू विक्रेत्यांसह अविस्मरणीय कार्यक्रम",
+    "email": "ईमेल",
+    "password": "पासवर्ड",
+    "sign_in": "साइन इन",
+    "or": "किंवा",
+    "continue_google": "Google ने पुढे जा",
+    "continue_apple": "Apple ने पुढे जा",
+    "continue_phone": "फोनने पुढे जा",
+    "no_account_signup": "खाते नाही? साइन अप करा",
+    "choose_role": "तुमची भूमिका निवडा",
+    "full_name": "पूर्ण नाव",
+    "role_client": "मी ग्राहक आहे",
+    "role_client_desc": "विक्रेते बुक करा आणि कार्यक्रम आखा",
+    "role_vendor": "मी विक्रेता आहे",
+    "role_vendor_desc": "सेवा द्या आणि व्यवसाय वाढवा"
+  },
+  "home": {
+    "greeting": "नमस्ते 🙏",
+    "search_hint": "विक्रेते, सेवा, शहरे शोधा",
+    "categories": "कार्यक्रम श्रेणी",
+    "trending_vendors": "ट्रेंडिंग विक्रेते",
+    "banner_title": "तुमचा स्वप्नातील कार्यक्रम",
+    "banner_sub": "₹25,000 पासून संपूर्ण नियोजन",
+    "book_now": "बुक करा",
+    "cat_wedding": "लग्न",
+    "cat_birthday": "वाढदिवस",
+    "cat_corporate": "कॉर्पोरेट",
+    "cat_engagement": "साखरपुडा",
+    "cat_festival": "सण"
+  }
+}
