@@ -1,4 +1,4 @@
-package com.example.jalashar
+package com.jalaram.events
 
 import io.flutter.embedding.android.FlutterActivity
 

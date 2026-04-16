@@ -8,4 +8,5 @@ class Env {
   static String get sentryDsn => dotenv.env['SENTRY_DSN'] ?? '';
   static String get environment => dotenv.env['ENV'] ?? 'dev';
   static bool get isProd => environment == 'prod';
+  static bool get isProduction => isProd;
 }

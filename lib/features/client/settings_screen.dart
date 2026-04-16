@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/auth/auth_controller.dart';
@@ -17,6 +18,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _notifications = true;
+  String _version = '';
 
   @override
   void initState() {
@@ -26,7 +28,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() => _notifications = prefs.getBool('notifications') ?? true);
+    final info = await PackageInfo.fromPlatform();
+    setState(() {
+      _notifications = prefs.getBool('notifications') ?? true;
+      _version = '${info.version}+${info.buildNumber}';
+    });
   }
 
   Future<void> _setNotifications(bool v) async {
@@ -249,7 +255,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 12),
           Center(
             child: Text(
-              'Jalaram Events v1.0.0 • Made with ❤️ in India',
+              'Jalaram Events v$_version • Made with ❤️ in India',
               style: Theme.of(context)
                   .textTheme
                   .bodySmall
