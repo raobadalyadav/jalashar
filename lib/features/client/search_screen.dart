@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -218,30 +219,67 @@ class _ResultCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(12),
-        leading: const CircleAvatar(
-          radius: 28,
-          backgroundColor: AppColors.ivory,
-          child: Icon(Icons.storefront, color: AppColors.deepMaroon),
-        ),
-        title: Text(vendor.name ?? 'Vendor'),
-        subtitle: Text('${vendor.category} · ${vendor.city ?? ""}'),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Row(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.star, color: AppColors.gold, size: 14),
-              Text(' ${vendor.ratingAvg.toStringAsFixed(1)}'),
-            ]),
-            if (vendor.basePrice != null)
-              Text(Fmt.currency(vendor.basePrice!),
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w600, fontSize: 12)),
-          ],
-        ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
         onTap: () => context.push('/vendor-detail/${vendor.id}', extra: vendor),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: vendor.avatarUrl != null
+                  ? CachedNetworkImage(
+                      imageUrl: vendor.avatarUrl!,
+                      width: 60,
+                      height: 60,
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) => Container(
+                          width: 60, height: 60, color: AppColors.violetMid),
+                    )
+                  : Container(
+                      width: 60,
+                      height: 60,
+                      decoration: const BoxDecoration(gradient: AppColors.brandGradient),
+                      alignment: Alignment.center,
+                      child: Text(
+                        (vendor.name ?? 'V')[0].toUpperCase(),
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800),
+                      ),
+                    ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(vendor.name ?? 'Vendor',
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                  const SizedBox(height: 2),
+                  Text('${vendor.category}${vendor.city != null ? ' · ${vendor.city}' : ''}',
+                      style: const TextStyle(color: AppColors.slate, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  Row(children: [
+                    const Icon(Icons.star_rounded, color: AppColors.gold, size: 14),
+                    Text(' ${vendor.ratingAvg.toStringAsFixed(1)}',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                    if (vendor.basePrice != null) ...[
+                      const Spacer(),
+                      Text(Fmt.currency(vendor.basePrice!),
+                          style: const TextStyle(
+                              color: AppColors.violet,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13)),
+                    ],
+                  ]),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.slate),
+          ]),
+        ),
       ),
     );
   }

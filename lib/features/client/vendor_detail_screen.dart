@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/data/content_repositories.dart';
 import '../../core/data/extra_repositories.dart';
+import '../../core/data/repositories.dart';
 import '../../core/models/models.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
@@ -33,6 +34,22 @@ class _VendorDetailScreenState extends ConsumerState<VendorDetailScreen> {
     final s =
         await ref.read(wishlistRepoProvider).isSaved(widget.vendor.id);
     if (mounted) setState(() => _saved = s);
+  }
+
+  Future<void> _openChat() async {
+    final bookings = await ref.read(myBookingsProvider.future);
+    if (!mounted) return;
+    final booking = bookings.where((b) => b.vendorId == widget.vendor.id).firstOrNull;
+    if (booking != null) {
+      context.push('/chat/${booking.id}/${widget.vendor.userId}');
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Book this vendor first to start chatting'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   Future<void> _toggleWishlist() async {
@@ -81,7 +98,7 @@ class _VendorDetailScreenState extends ConsumerState<VendorDetailScreen> {
                   inCompare
                       ? Icons.compare_arrows
                       : Icons.compare_arrows_outlined,
-                  color: inCompare ? AppColors.saffron : null,
+                  color: inCompare ? AppColors.violet : null,
                 ),
               ),
               // Wishlist
@@ -95,17 +112,45 @@ class _VendorDetailScreenState extends ConsumerState<VendorDetailScreen> {
             ],
             flexibleSpace: FlexibleSpaceBar(
               title: Text(vendor.name ?? 'Vendor'),
-              background: vendor.portfolioUrls.isNotEmpty
-                  ? CachedNetworkImage(
+              background: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (vendor.portfolioUrls.isNotEmpty)
+                    CachedNetworkImage(
                       imageUrl: vendor.portfolioUrls.first,
-                      fit: BoxFit.cover)
-                  : Container(
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [AppColors.saffron, AppColors.deepMaroon],
+                      fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) => Container(
+                        decoration: const BoxDecoration(
+                          gradient: AppColors.heroGradient,
                         ),
                       ),
+                    )
+                  else if (vendor.avatarUrl != null)
+                    CachedNetworkImage(
+                      imageUrl: vendor.avatarUrl!,
+                      fit: BoxFit.cover,
+                    )
+                  else
+                    Container(
+                      decoration: const BoxDecoration(
+                        gradient: AppColors.heroGradient,
+                      ),
                     ),
+                  // gradient overlay for text readability
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withValues(alpha: 0.6),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
 
@@ -121,7 +166,7 @@ class _VendorDetailScreenState extends ConsumerState<VendorDetailScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppColors.gold.withOpacity(0.15),
+                        color: AppColors.gold.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -157,7 +202,7 @@ class _VendorDetailScreenState extends ConsumerState<VendorDetailScreen> {
                     Text(
                       '${Fmt.currency(vendor.basePrice!)} onwards',
                       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          color: AppColors.deepMaroon,
+                          color: AppColors.violet,
                           fontWeight: FontWeight.w800),
                     ),
 
@@ -243,8 +288,8 @@ class _VendorDetailScreenState extends ConsumerState<VendorDetailScreen> {
           child: Row(children: [
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.chat_bubble_outline),
+                onPressed: _openChat,
+                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
                 label: const Text('Message'),
               ),
             ),
@@ -279,7 +324,7 @@ class _MiniAvailabilityCalendar extends StatelessWidget {
 
     return Card(
       elevation: 0,
-      color: AppColors.ivory,
+      color: AppColors.violetSoft,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -309,16 +354,16 @@ class _MiniAvailabilityCalendar extends StatelessWidget {
                   height: 36,
                   decoration: BoxDecoration(
                     color: blocked
-                        ? AppColors.danger.withOpacity(0.15)
+                        ? AppColors.danger.withValues(alpha: 0.15)
                         : (isToday
-                            ? AppColors.saffron.withOpacity(0.3)
+                            ? AppColors.violet.withValues(alpha: 0.15)
                             : Colors.white),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: isToday
-                          ? AppColors.saffron
+                          ? AppColors.violet
                           : blocked
-                              ? AppColors.danger.withOpacity(0.5)
+                              ? AppColors.danger.withValues(alpha: 0.5)
                               : Colors.grey.shade300,
                     ),
                   ),
@@ -328,7 +373,7 @@ class _MiniAvailabilityCalendar extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: isToday ? FontWeight.w700 : FontWeight.w400,
-                      color: blocked ? AppColors.danger : AppColors.deepMaroon,
+                      color: blocked ? AppColors.danger : AppColors.charcoal,
                     ),
                   ),
                 );

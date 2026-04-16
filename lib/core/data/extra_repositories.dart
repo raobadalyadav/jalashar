@@ -126,6 +126,19 @@ final reviewRepoProvider =
 final vendorReviewsProvider = FutureProvider.family<List<Review>, String>(
     (ref, vendorId) => ref.watch(reviewRepoProvider).forVendor(vendorId));
 
+final myVendorReviewsProvider = FutureProvider<List<Review>>((ref) async {
+  final client = ref.watch(supabaseClientProvider);
+  final uid = client.auth.currentUser?.id;
+  if (uid == null) return [];
+  final vendorRow = await client
+      .from('vendors')
+      .select('id')
+      .eq('user_id', uid)
+      .maybeSingle();
+  if (vendorRow == null) return [];
+  return ref.watch(reviewRepoProvider).forVendor(vendorRow['id'] as String);
+});
+
 // ========== STORAGE / UPLOADS ==========
 class StorageRepository {
   StorageRepository(this._client);

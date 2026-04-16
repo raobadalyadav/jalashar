@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/data/repositories.dart';
+import '../../core/ui/widgets.dart';
 import 'bookings_tab.dart';
 import 'explore_tab.dart';
 import 'home_tab.dart';
@@ -30,39 +31,47 @@ class _ClientShellState extends ConsumerState<ClientShell> {
     final unread = unreadAsync.valueOrNull ?? 0;
 
     return Scaffold(
-      body: IndexedStack(index: _index, children: _tabs),
+      body: Column(
+        children: [
+          // Offline banner at the very top
+          const ConnectivityBanner(),
+          Expanded(
+            child: IndexedStack(index: _index, children: _tabs),
+          ),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: [
           NavigationDestination(
-              icon: const Icon(Icons.home_outlined),
-              selectedIcon: const Icon(Icons.home),
-              label: 'nav.home'.tr()),
+            icon: const Icon(Icons.home_outlined),
+            selectedIcon: const Icon(Icons.home_rounded),
+            label: 'nav.home'.tr(),
+          ),
           NavigationDestination(
-              icon: const Icon(Icons.explore_outlined),
-              selectedIcon: const Icon(Icons.explore),
-              label: 'nav.explore'.tr()),
+            icon: const Icon(Icons.explore_outlined),
+            selectedIcon: const Icon(Icons.explore_rounded),
+            label: 'nav.explore'.tr(),
+          ),
           NavigationDestination(
-              icon: const Icon(Icons.event_note_outlined),
-              selectedIcon: const Icon(Icons.event_note),
-              label: 'nav.bookings'.tr()),
+            icon: const Icon(Icons.event_note_outlined),
+            selectedIcon: const Icon(Icons.event_note_rounded),
+            label: 'nav.bookings'.tr(),
+          ),
           NavigationDestination(
-              icon: Badge(
-                isLabelVisible: unread > 0,
-                label: unread > 9
-                    ? const Text('9+')
-                    : Text('$unread'),
-                child: const Icon(Icons.person_outline),
-              ),
-              selectedIcon: Badge(
-                isLabelVisible: unread > 0,
-                label: unread > 9
-                    ? const Text('9+')
-                    : Text('$unread'),
-                child: const Icon(Icons.person),
-              ),
-              label: 'nav.profile'.tr()),
+            icon: Badge(
+              isLabelVisible: unread > 0,
+              label: Text(unread > 9 ? '9+' : '$unread'),
+              child: const Icon(Icons.person_outline_rounded),
+            ),
+            selectedIcon: Badge(
+              isLabelVisible: unread > 0,
+              label: Text(unread > 9 ? '9+' : '$unread'),
+              child: const Icon(Icons.person_rounded),
+            ),
+            label: 'nav.profile'.tr(),
+          ),
         ],
       ),
     );

@@ -98,7 +98,7 @@ class _RoleCard extends StatelessWidget {
             color: selected ? scheme.primary : scheme.outlineVariant,
             width: selected ? 2 : 1,
           ),
-          color: selected ? scheme.primary.withOpacity(0.08) : null,
+          color: selected ? scheme.primary.withValues(alpha: 0.08) : null,
         ),
         child: Row(children: [
           Icon(icon, size: 36, color: scheme.primary),

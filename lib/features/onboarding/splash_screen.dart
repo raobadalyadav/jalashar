@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
@@ -21,13 +20,12 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
     debugPrint('[SPLASH] initState');
-    // Fire regardless of framework timing
     Future.microtask(_run);
   }
 
   Future<void> _run() async {
     debugPrint('[SPLASH] _run started');
-    await Future.delayed(const Duration(milliseconds: 1000));
+    await Future.delayed(const Duration(milliseconds: 1800));
     if (!mounted || _navigated) return;
 
     String target;
@@ -92,32 +90,83 @@ class _SplashScreenState extends State<SplashScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [AppColors.saffron, AppColors.gold],
+            colors: [
+              AppColors.violetDeep,
+              AppColors.violet,
+              Color(0xFF9333EA),
+            ],
           ),
         ),
-        child: Center(
+        child: SafeArea(
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.celebration, size: 96, color: Colors.white)
+              const Spacer(flex: 2),
+              // Logo
+              Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.3),
+                    width: 2,
+                  ),
+                ),
+                child: const Icon(Icons.celebration, size: 52, color: Colors.white),
+              )
                   .animate()
-                  .scale(duration: 600.ms, curve: Curves.elasticOut),
-              const SizedBox(height: 24),
+                  .scale(duration: 700.ms, curve: Curves.elasticOut),
+              const SizedBox(height: 28),
               const Text(
                 'Jalaram Events',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 32,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 34,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
                 ),
-              ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.3),
+              ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.3),
               const SizedBox(height: 8),
               const Text(
                 'Celebrate. Plan. Remember.',
-                style: TextStyle(color: Colors.white70, fontSize: 16),
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w400,
+                  letterSpacing: 0.5,
+                ),
               ).animate().fadeIn(delay: 600.ms),
-              const SizedBox(height: 48),
-              const CircularProgressIndicator(color: Colors.white),
+              const Spacer(flex: 2),
+              // Loading dots
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(3, (i) {
+                  return Container(
+                    width: 8,
+                    height: 8,
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: const BoxDecoration(
+                      color: Colors.white54,
+                      shape: BoxShape.circle,
+                    ),
+                  )
+                      .animate(onPlay: (c) => c.repeat())
+                      .fadeIn(delay: Duration(milliseconds: i * 200))
+                      .then()
+                      .fadeOut(duration: 600.ms)
+                      .then()
+                      .fadeIn();
+                }),
+              ).animate().fadeIn(delay: 800.ms),
+              const Spacer(),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 32),
+                child: const Text(
+                  'By Jalaram Enterprises',
+                  style: TextStyle(color: Colors.white38, fontSize: 12),
+                ).animate().fadeIn(delay: 1000.ms),
+              ),
             ],
           ),
         ),

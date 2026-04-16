@@ -71,6 +71,17 @@ class VendorRepository {
     });
   }
 
+  Future<Vendor?> myVendor() async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return null;
+    final row = await _client
+        .from('vendors')
+        .select('*, users(name, avatar_url)')
+        .eq('user_id', uid)
+        .maybeSingle();
+    return row == null ? null : Vendor.fromRow(row);
+  }
+
   Future<List<Vendor>> listPendingVerification() async {
     final rows = await _client
         .from('vendors')

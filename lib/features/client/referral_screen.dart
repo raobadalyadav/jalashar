@@ -31,7 +31,7 @@ class ReferralScreen extends ConsumerWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(22),
                   gradient: const LinearGradient(
-                    colors: [AppColors.saffron, AppColors.deepMaroon],
+                    colors: [AppColors.violet, AppColors.violetDeep],
                   ),
                 ),
                 child: Column(
@@ -50,7 +50,7 @@ class ReferralScreen extends ConsumerWidget {
                       FilledButton(
                         style: FilledButton.styleFrom(
                           backgroundColor: Colors.white,
-                          foregroundColor: AppColors.deepMaroon,
+                          foregroundColor: AppColors.violetDeep,
                         ),
                         onPressed: () async {
                           try {
@@ -85,9 +85,9 @@ class ReferralScreen extends ConsumerWidget {
                                       fontSize: 22,
                                       fontWeight: FontWeight.w700,
                                       letterSpacing: 2,
-                                      color: AppColors.deepMaroon)),
+                                      color: AppColors.violetDeep)),
                             ),
-                            const Icon(Icons.copy, color: AppColors.deepMaroon),
+                            const Icon(Icons.copy, color: AppColors.violetDeep),
                           ]),
                         ),
                       ),
@@ -107,7 +107,7 @@ class ReferralScreen extends ConsumerWidget {
                                 .headlineMedium
                                 ?.copyWith(
                                     fontWeight: FontWeight.w700,
-                                    color: AppColors.deepMaroon)),
+                                    color: AppColors.violetDeep)),
                         const Text('Total Referrals'),
                       ]),
                     ),
@@ -146,10 +146,10 @@ class ReferralScreen extends ConsumerWidget {
 
   Widget _step(String n, String title, String desc) => ListTile(
         leading: CircleAvatar(
-          backgroundColor: AppColors.ivory,
+          backgroundColor: AppColors.violetSoft,
           child: Text(n,
               style: const TextStyle(
-                  color: AppColors.deepMaroon, fontWeight: FontWeight.w700)),
+                  color: AppColors.violetDeep, fontWeight: FontWeight.w700)),
         ),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(desc),

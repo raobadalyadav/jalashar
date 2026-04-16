@@ -119,7 +119,7 @@ class _TicketCard extends StatelessWidget {
   final SupportTicket t;
 
   Color _statusColor() => switch (t.status) {
-        'open' => AppColors.saffron,
+        'open' => AppColors.violet,
         'in_progress' => Colors.blue,
         'resolved' => AppColors.success,
         _ => AppColors.slate,

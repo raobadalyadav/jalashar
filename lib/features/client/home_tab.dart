@@ -238,7 +238,7 @@ class _BannerItem extends StatelessWidget {
                 end: Alignment.centerLeft,
                 colors: [
                   Colors.transparent,
-                  Colors.black.withOpacity(0.55),
+                  Colors.black.withValues(alpha: 0.55),
                 ],
               ),
             ),
@@ -379,7 +379,7 @@ class _CategoryRow extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppColors.deepMaroon.withOpacity(0.08),
+                      color: AppColors.deepMaroon.withValues(alpha: 0.08),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(icon, color: AppColors.deepMaroon, size: 24),

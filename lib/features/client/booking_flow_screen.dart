@@ -10,6 +10,7 @@ import '../../core/models/models.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 
+
 class BookingFlowScreen extends ConsumerStatefulWidget {
   const BookingFlowScreen({super.key, this.vendor, this.service});
   final Vendor? vendor;
@@ -311,7 +312,7 @@ class _BookingFlowScreenState extends ConsumerState<BookingFlowScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppColors.success.withOpacity(0.1),
+                      color: AppColors.success.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: AppColors.success),
                     ),
@@ -416,10 +417,36 @@ class _BookingFlowScreenState extends ConsumerState<BookingFlowScreen> {
       }
 
       // Create Razorpay order (30% advance)
-      await ref.read(paymentRepoProvider).createOrder(
-            bookingId: booking.id,
-            amount: _total * 0.3,
-          );
+      try {
+        await ref.read(paymentRepoProvider).createOrder(
+              bookingId: booking.id,
+              amount: _total * 0.3,
+            );
+      } catch (_) {}
+
+      // Auto system message to vendor
+      if (widget.vendor != null) {
+        try {
+          await ref.read(messageRepoProvider).send(
+                booking.id,
+                widget.vendor!.userId,
+                '🎉 New booking received!\n'
+                'Event Date: ${Fmt.date(_date!)}\n'
+                'Venue: ${_venue.text}\n'
+                'Guests: ${_guests.text}\n'
+                'Total: ${Fmt.currency(_total)}\n\n'
+                'Please confirm availability and accept/decline from your dashboard.',
+              );
+        } catch (_) {}
+      }
+
+      // Generate checklist from template if service type known
+      try {
+        await ref.read(checklistRepoProvider).generateFromTemplate(
+              booking.id,
+              widget.service?.slug ?? 'wedding',
+            );
+      } catch (_) {}
 
       ref.invalidate(myBookingsProvider);
       if (mounted) context.go('/booking/confirm/${booking.id}');

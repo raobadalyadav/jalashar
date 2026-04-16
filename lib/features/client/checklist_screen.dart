@@ -79,9 +79,9 @@ class ChecklistScreen extends ConsumerWidget {
                     child: LinearProgressIndicator(
                       value: progress,
                       minHeight: 10,
-                      backgroundColor: AppColors.ivory,
+                      backgroundColor: AppColors.violetSoft,
                       valueColor:
-                          const AlwaysStoppedAnimation(AppColors.saffron),
+                          const AlwaysStoppedAnimation(AppColors.violet),
                     ),
                   ),
                 ],

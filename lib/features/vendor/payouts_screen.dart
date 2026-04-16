@@ -45,7 +45,7 @@ class PayoutsScreen extends ConsumerWidget {
                       leading: CircleAvatar(
                         backgroundColor:
                             (p.status == 'paid' ? AppColors.success : AppColors.saffron)
-                                .withOpacity(0.15),
+                                .withValues(alpha: 0.15),
                         child: Icon(
                           p.status == 'paid' ? Icons.check : Icons.hourglass_top,
                           color: p.status == 'paid'

@@ -1,13 +1,15 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shimmer/shimmer.dart';
 
 import '../../core/data/repositories.dart';
 import '../../core/models/models.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/ui/widgets.dart';
 import '../../core/utils/formatters.dart';
+import 'compare_vendors_screen.dart';
 
 final _selectedCategoryProvider = StateProvider<String?>((_) => null);
 
@@ -15,153 +17,281 @@ class ExploreTab extends ConsumerWidget {
   const ExploreTab({super.key});
 
   static const _categories = [
-    ('All', null, Icons.apps),
-    ('Photographer', 'photographer', Icons.camera_alt),
-    ('Makeup', 'makeup', Icons.brush),
-    ('DJ', 'dj', Icons.music_note),
-    ('Caterer', 'caterer', Icons.restaurant),
-    ('Decorator', 'decorator', Icons.celebration),
-    ('Mehendi', 'mehendi', Icons.pan_tool),
-    ('Pandit', 'pandit', Icons.temple_hindu),
-    ('Florist', 'florist', Icons.local_florist),
+    ('All', null, Icons.apps_rounded),
+    ('Photographer', 'photographer', Icons.camera_alt_rounded),
+    ('Makeup', 'makeup', Icons.brush_rounded),
+    ('DJ', 'dj', Icons.music_note_rounded),
+    ('Caterer', 'caterer', Icons.restaurant_rounded),
+    ('Decorator', 'decorator', Icons.celebration_rounded),
+    ('Mehendi', 'mehendi', Icons.pan_tool_rounded),
+    ('Pandit', 'pandit', Icons.temple_hindu_rounded),
+    ('Florist', 'florist', Icons.local_florist_rounded),
+    ('Band', 'band', Icons.queue_music_rounded),
+    ('Videographer', 'videographer', Icons.videocam_rounded),
   ];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cat = ref.watch(_selectedCategoryProvider);
     final vendors = ref.watch(vendorListProvider(cat));
+    final compareList = ref.watch(compareVendorsProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Explore Vendors'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search_rounded),
+            onPressed: () => context.push('/search'),
+          ),
+        ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(60),
+          preferredSize: const Size.fromHeight(56),
           child: SizedBox(
-            height: 60,
+            height: 56,
             child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               scrollDirection: Axis.horizontal,
               itemCount: _categories.length,
               separatorBuilder: (_, __) => const SizedBox(width: 8),
               itemBuilder: (_, i) {
                 final (label, slug, icon) = _categories[i];
                 final selected = cat == slug;
-                return FilterChip(
-                  selected: selected,
-                  onSelected: (_) =>
-                      ref.read(_selectedCategoryProvider.notifier).state = slug,
-                  avatar: Icon(icon, size: 18),
-                  label: Text(label),
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  child: FilterChip(
+                    selected: selected,
+                    onSelected: (_) => ref
+                        .read(_selectedCategoryProvider.notifier)
+                        .state = slug,
+                    avatar: Icon(icon,
+                        size: 16,
+                        color: selected ? Colors.white : AppColors.slate),
+                    label: Text(label),
+                    selectedColor: AppColors.violet,
+                    labelStyle: TextStyle(
+                      color: selected ? Colors.white : AppColors.charcoal,
+                      fontWeight:
+                          selected ? FontWeight.w700 : FontWeight.w500,
+                      fontSize: 12,
+                    ),
+                    backgroundColor: AppColors.violetSoft,
+                    checkmarkColor: Colors.white,
+                    showCheckmark: false,
+                  ),
                 );
               },
             ),
           ),
         ),
       ),
-      body: vendors.when(
-        loading: () => _ShimmerList(),
-        error: (e, _) => Center(child: Text('Error: $e')),
-        data: (list) {
-          if (list.isEmpty) {
-            return const Center(child: Text('No vendors found'));
-          }
-          return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(vendorListProvider),
-            child: ListView.builder(
+      body: Stack(
+        children: [
+          vendors.when(
+            loading: () => ListView(
               padding: const EdgeInsets.all(16),
-              itemCount: list.length,
-              itemBuilder: (_, i) => _VendorTile(vendor: list[i]),
+              children: List.generate(5, (_) => const SkeletonCard(height: 110)),
             ),
-          );
-        },
+            error: (e, _) => ErrorView(
+              error: e,
+              onRetry: () => ref.invalidate(vendorListProvider),
+            ),
+            data: (list) {
+              if (list.isEmpty) {
+                return EmptyState(
+                  icon: Icons.storefront_rounded,
+                  title: 'No vendors found',
+                  subtitle: 'Try a different category',
+                );
+              }
+              return RefreshIndicator(
+                color: AppColors.violet,
+                onRefresh: () async => ref.invalidate(vendorListProvider),
+                child: ListView.builder(
+                  padding: EdgeInsets.fromLTRB(
+                      16, 16, 16, compareList.isEmpty ? 16 : 96),
+                  itemCount: list.length,
+                  itemBuilder: (_, i) => _VendorCard(vendor: list[i])
+                      .animate(delay: Duration(milliseconds: i * 60))
+                      .fadeIn()
+                      .slideY(begin: 0.1),
+                ),
+              );
+            },
+          ),
+          // Compare bar floats above list
+          if (compareList.isNotEmpty)
+            Positioned(
+              bottom: 16,
+              left: 16,
+              right: 16,
+              child: CompareBar(),
+            ),
+        ],
       ),
     );
   }
 }
 
-class _VendorTile extends StatelessWidget {
-  const _VendorTile({required this.vendor});
+class _VendorCard extends ConsumerWidget {
+  const _VendorCard({required this.vendor});
   final Vendor vendor;
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final compareList = ref.watch(compareVendorsProvider);
+    final inCompare = compareList.any((v) => v.id == vendor.id);
+
     return Card(
-      clipBehavior: Clip.antiAlias,
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 14),
       child: InkWell(
         onTap: () => context.push('/vendor-detail/${vendor.id}', extra: vendor),
+        borderRadius: BorderRadius.circular(18),
         child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: SizedBox(
-                width: 80,
-                height: 80,
-                child: vendor.avatarUrl != null
-                    ? CachedNetworkImage(imageUrl: vendor.avatarUrl!, fit: BoxFit.cover)
-                    : Container(
-                        color: AppColors.ivory,
-                        child: const Icon(Icons.storefront,
-                            size: 36, color: AppColors.deepMaroon),
-                      ),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(children: [
-                    Expanded(
-                      child: Text(vendor.name ?? 'Vendor',
-                          style: Theme.of(context).textTheme.titleMedium),
-                    ),
-                    if (vendor.isVerified)
-                      const Icon(Icons.verified, color: Colors.blue, size: 18),
-                  ]),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${vendor.category} · ${vendor.city ?? ''}',
-                    style: Theme.of(context).textTheme.bodySmall,
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              // Avatar
+              Hero(
+                tag: 'vendor-avatar-${vendor.id}',
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: SizedBox(
+                    width: 84,
+                    height: 84,
+                    child: vendor.avatarUrl != null
+                        ? CachedNetworkImage(
+                            imageUrl: vendor.avatarUrl!,
+                            fit: BoxFit.cover,
+                            placeholder: (_, __) => Container(
+                              color: AppColors.violetMid,
+                              child: const Icon(Icons.storefront_rounded,
+                                  color: AppColors.violet, size: 32),
+                            ),
+                            errorWidget: (_, __, ___) => Container(
+                              color: AppColors.violetMid,
+                              child: const Icon(Icons.storefront_rounded,
+                                  color: AppColors.violet, size: 32),
+                            ),
+                          )
+                        : Container(
+                            color: AppColors.violetMid,
+                            child: const Icon(Icons.storefront_rounded,
+                                color: AppColors.violet, size: 32),
+                          ),
                   ),
-                  const SizedBox(height: 4),
-                  Row(children: [
-                    const Icon(Icons.star, color: AppColors.gold, size: 16),
-                    const SizedBox(width: 2),
-                    Text(vendor.ratingAvg.toStringAsFixed(1)),
-                    const SizedBox(width: 12),
-                    Text(
-                      vendor.basePrice != null
-                          ? '${Fmt.currency(vendor.basePrice!)} onwards'
-                          : '',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  ]),
-                ],
+                ),
               ),
-            ),
-          ]),
-        ),
-      ),
-    );
-  }
-}
-
-class _ShimmerList extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: 6,
-      itemBuilder: (_, __) => Shimmer.fromColors(
-        baseColor: Colors.grey.shade300,
-        highlightColor: Colors.grey.shade100,
-        child: Container(
-          height: 104,
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      Expanded(
+                        child: Text(
+                          vendor.name ?? 'Vendor',
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                        ),
+                      ),
+                      if (vendor.isVerified)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.info.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.verified_rounded,
+                                  color: AppColors.info, size: 12),
+                              const SizedBox(width: 2),
+                              Text('Verified',
+                                  style: TextStyle(
+                                      color: AppColors.info,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                        ),
+                    ]),
+                    const SizedBox(height: 4),
+                    Row(children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.violetMid,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          vendor.category,
+                          style: const TextStyle(
+                              color: AppColors.violet,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      if (vendor.city != null) ...[
+                        const SizedBox(width: 6),
+                        const Icon(Icons.location_on_rounded,
+                            size: 12, color: AppColors.slate),
+                        Text(vendor.city!,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(color: AppColors.slate)),
+                      ],
+                    ]),
+                    const SizedBox(height: 6),
+                    Row(children: [
+                      const Icon(Icons.star_rounded,
+                          color: AppColors.gold, size: 16),
+                      const SizedBox(width: 2),
+                      Text(
+                        vendor.ratingAvg.toStringAsFixed(1),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 13),
+                      ),
+                      const Spacer(),
+                      if (vendor.basePrice != null)
+                        Text(
+                          Fmt.currency(vendor.basePrice!),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                            color: AppColors.violet,
+                          ),
+                        ),
+                    ]),
+                  ],
+                ),
+              ),
+              // Compare toggle
+              GestureDetector(
+                onTap: () =>
+                    ref.read(compareVendorsProvider.notifier).toggle(vendor),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: inCompare ? AppColors.violet : AppColors.violetSoft,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    inCompare ? Icons.compare_arrows : Icons.add,
+                    size: 16,
+                    color: inCompare ? Colors.white : AppColors.violet,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/data/repositories.dart';
 import '../../core/models/models.dart';
@@ -92,7 +93,7 @@ class _ConfirmationBody extends StatelessWidget {
                 width: 100,
                 height: 100,
                 decoration: BoxDecoration(
-                  color: AppColors.success.withOpacity(0.1),
+                  color: AppColors.success.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                   border: Border.all(color: AppColors.success, width: 3),
                 ),
@@ -108,7 +109,7 @@ class _ConfirmationBody extends StatelessWidget {
               Text(
                 'Booking Confirmed!',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w800, color: AppColors.deepMaroon),
+                    fontWeight: FontWeight.w800, color: AppColors.violet),
               ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2),
 
               const SizedBox(height: 6),
@@ -149,7 +150,7 @@ class _ConfirmationBody extends StatelessWidget {
                   const Divider(height: 1),
                   _Row('Status', booking.status.label,
                       icon: Icons.info_outline,
-                      valueColor: AppColors.saffron),
+                      valueColor: AppColors.violet),
                 ],
               ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.1),
 
@@ -160,7 +161,7 @@ class _ConfirmationBody extends StatelessWidget {
                 children: [
                   _Row('Total Amount', Fmt.currency(booking.totalAmount),
                       icon: Icons.currency_rupee,
-                      valueColor: AppColors.deepMaroon,
+                      valueColor: AppColors.violet,
                       bold: true),
                   const Divider(height: 1),
                   _Row(
@@ -194,26 +195,48 @@ class _ConfirmationBody extends StatelessWidget {
                   child: OutlinedButton.icon(
                     onPressed: () =>
                         context.push('/checklist/${booking.id}'),
-                    icon: const Icon(Icons.checklist),
+                    icon: const Icon(Icons.checklist_rounded, size: 18),
                     label: const Text('Checklist'),
+                    style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(0, 48)),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
-                  flex: 2,
-                  child: FilledButton.icon(
-                    onPressed: () => context.go('/home'),
-                    icon: const Icon(Icons.home),
-                    label: const Text('Go Home'),
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      final msg = '🎉 My event booking is confirmed!\n'
+                          'Booking ID: ${booking.id.substring(0, 8).toUpperCase()}\n'
+                          'Date: ${Fmt.date(booking.eventDate)}\n'
+                          '${booking.venue != null ? 'Venue: ${booking.venue}\n' : ''}'
+                          '\nBooked via Jalaram Events 🙏';
+                      Share.share(msg);
+                    },
+                    icon: const Icon(Icons.share_rounded, size: 18),
+                    label: const Text('Share'),
+                    style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(0, 48)),
                   ),
                 ),
-              ]).animate().fadeIn(delay: 700.ms),
+              ]).animate().fadeIn(delay: 650.ms),
 
               const SizedBox(height: 12),
 
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () => context.go('/home'),
+                  icon: const Icon(Icons.home_rounded, size: 18),
+                  label: const Text('Go to Home'),
+                  style: FilledButton.styleFrom(minimumSize: const Size(0, 52)),
+                ),
+              ).animate().fadeIn(delay: 700.ms),
+
+              const SizedBox(height: 8),
+
               TextButton.icon(
                 onPressed: () => context.push('/booking/new'),
-                icon: const Icon(Icons.add),
+                icon: const Icon(Icons.add_rounded, size: 16),
                 label: const Text('Book Another Service'),
               ).animate().fadeIn(delay: 800.ms),
 
@@ -306,11 +329,18 @@ class _CountdownCard extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [AppColors.saffron, AppColors.deepMaroon],
+          colors: [AppColors.violetDeep, AppColors.violet, Color(0xFFBE185D)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.violet.withValues(alpha: 0.3),
+            blurRadius: 16,
+            offset: Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -352,7 +382,7 @@ class _CountUnit extends StatelessWidget {
           width: 56,
           height: 56,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
+            color: Colors.white.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(12),
           ),
           alignment: Alignment.center,

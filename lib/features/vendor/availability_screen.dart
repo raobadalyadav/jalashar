@@ -63,14 +63,14 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
               children: [
                 Container(
                   padding: const EdgeInsets.all(16),
-                  color: AppColors.ivory,
+                  color: AppColors.violetSoft,
                   child: Row(children: const [
-                    Icon(Icons.info_outline, color: AppColors.deepMaroon),
+                    Icon(Icons.info_outline, color: AppColors.violetDeep),
                     SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         'Tap any date to block/unblock. Blocked dates hide you from client searches for that day.',
-                        style: TextStyle(color: AppColors.deepMaroon),
+                        style: TextStyle(color: AppColors.violetDeep),
                       ),
                     ),
                   ]),
@@ -95,7 +95,7 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
                     children: [
                       _legend('Available', AppColors.success),
                       _legend('Blocked', AppColors.danger),
-                      _legend('Today', AppColors.saffron),
+                      _legend('Today', AppColors.violet),
                     ],
                   ),
                 ),
@@ -134,8 +134,7 @@ class _MiniCalendar extends StatelessWidget {
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
     final startOffset = first.weekday % 7; // Sunday-start
     final today = DateTime.now();
-    final isToday =
-        (DateTime d) => d.year == today.year && d.month == today.month && d.day == today.day;
+    bool isToday(DateTime d) => d.year == today.year && d.month == today.month && d.day == today.day;
 
     return Column(
       children: [
@@ -182,10 +181,10 @@ class _MiniCalendar extends StatelessWidget {
                   color: isBlocked
                       ? AppColors.danger
                       : isToday(date)
-                          ? AppColors.saffron
+                          ? AppColors.violet
                           : past
                               ? Colors.grey.shade200
-                              : AppColors.ivory,
+                              : AppColors.violetSoft,
                 ),
                 alignment: Alignment.center,
                 child: Text(
@@ -195,7 +194,7 @@ class _MiniCalendar extends StatelessWidget {
                         ? Colors.white
                         : past
                             ? AppColors.slate
-                            : AppColors.deepMaroon,
+                            : AppColors.violetDeep,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
