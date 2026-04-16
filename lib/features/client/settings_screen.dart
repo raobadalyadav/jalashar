@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/auth/auth_controller.dart';
 import '../../core/data/extra_repositories.dart';
+import '../../core/theme/app_theme.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -39,74 +40,97 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
-          ListTile(
-            leading: const Icon(Icons.edit),
-            title: const Text('Edit profile'),
-            onTap: () => context.push('/profile/edit'),
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.language),
-            title: const Text('Language'),
-            trailing: DropdownButton<Locale>(
-              value: context.locale,
-              underline: const SizedBox(),
-              items: const [
-                DropdownMenuItem(value: Locale('en'), child: Text('English')),
-                DropdownMenuItem(value: Locale('hi'), child: Text('हिन्दी')),
-                DropdownMenuItem(value: Locale('gu'), child: Text('ગુજરાતી')),
-                DropdownMenuItem(value: Locale('mr'), child: Text('मराठी')),
-                DropdownMenuItem(value: Locale('ta'), child: Text('தமிழ்')),
-              ],
-              onChanged: (l) async {
-                if (l == null) return;
-                await context.setLocale(l);
-                await ref
-                    .read(userRepoProvider)
-                    .updateProfile(locale: l.languageCode);
-                ref.invalidate(currentUserProvider);
+          _Section(title: 'Account', children: [
+            _tile(Icons.edit_outlined, 'Edit profile', onTap: () => context.push('/profile/edit')),
+            _tile(Icons.favorite_outline, 'Wishlist', onTap: () => context.push('/wishlist')),
+            _tile(Icons.card_giftcard, 'Refer & Earn', onTap: () => context.push('/referral')),
+          ]),
+          _Section(title: 'Preferences', children: [
+            ListTile(
+              leading: const Icon(Icons.language),
+              title: const Text('Language'),
+              trailing: DropdownButton<Locale>(
+                value: context.locale,
+                underline: const SizedBox(),
+                items: const [
+                  DropdownMenuItem(value: Locale('en'), child: Text('English')),
+                  DropdownMenuItem(value: Locale('hi'), child: Text('हिन्दी')),
+                  DropdownMenuItem(value: Locale('gu'), child: Text('ગુજરાતી')),
+                  DropdownMenuItem(value: Locale('mr'), child: Text('मराठी')),
+                  DropdownMenuItem(value: Locale('ta'), child: Text('தமிழ்')),
+                ],
+                onChanged: (l) async {
+                  if (l == null) return;
+                  await context.setLocale(l);
+                  await ref.read(userRepoProvider).updateProfile(locale: l.languageCode);
+                  ref.invalidate(currentUserProvider);
+                },
+              ),
+            ),
+            SwitchListTile(
+              secondary: const Icon(Icons.notifications),
+              title: const Text('Push Notifications'),
+              value: _notifications,
+              onChanged: _setNotifications,
+            ),
+          ]),
+          _Section(title: 'Support', children: [
+            _tile(Icons.help_outline, 'FAQ', onTap: () => context.push('/faq')),
+            _tile(Icons.support_agent, 'Contact Support', onTap: () => context.push('/support')),
+            _tile(Icons.privacy_tip_outlined, 'Privacy Policy'),
+            _tile(Icons.description_outlined, 'Terms of Service'),
+          ]),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: FilledButton.tonalIcon(
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(double.infinity, 52),
+                backgroundColor: AppColors.danger.withOpacity(0.1),
+                foregroundColor: AppColors.danger,
+              ),
+              onPressed: () async {
+                await ref.read(authControllerProvider).signOut();
+                if (context.mounted) context.go('/auth/sign-in');
               },
+              icon: const Icon(Icons.logout),
+              label: const Text('Sign out'),
             ),
           ),
-          const Divider(),
-          SwitchListTile(
-            secondary: const Icon(Icons.notifications),
-            title: const Text('Notifications'),
-            value: _notifications,
-            onChanged: _setNotifications,
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.favorite_outline),
-            title: const Text('Wishlist'),
-            onTap: () => context.push('/wishlist'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.notifications_outlined),
-            title: const Text('All Notifications'),
-            onTap: () => context.push('/notifications'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.privacy_tip_outlined),
-            title: const Text('Privacy Policy'),
-            onTap: () {},
-          ),
-          ListTile(
-            leading: const Icon(Icons.description_outlined),
-            title: const Text('Terms of Service'),
-            onTap: () {},
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.red),
-            title: const Text('Sign out', style: TextStyle(color: Colors.red)),
-            onTap: () async {
-              await ref.read(authControllerProvider).signOut();
-              if (context.mounted) context.go('/auth/sign-in');
-            },
-          ),
+          const SizedBox(height: 20),
         ],
       ),
+    );
+  }
+
+  Widget _tile(IconData i, String t, {VoidCallback? onTap}) => ListTile(
+        leading: Icon(i),
+        title: Text(t),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: onTap,
+      );
+}
+
+class _Section extends StatelessWidget {
+  const _Section({required this.title, required this.children});
+  final String title;
+  final List<Widget> children;
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+          child: Text(title.toUpperCase(),
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1,
+                  color: AppColors.slate)),
+        ),
+        ...children,
+      ],
     );
   }
 }

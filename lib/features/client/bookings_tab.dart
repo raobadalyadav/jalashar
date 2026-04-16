@@ -96,15 +96,25 @@ class _BookingCard extends StatelessWidget {
                     label: const Text('Rate Vendor'),
                   )),
             ],
-            if (b.vendorId != null) ...[
-              const SizedBox(height: 8),
-              Builder(builder: (ctx) => TextButton.icon(
-                    onPressed: () =>
-                        ctx.push('/chat/${b.id}/${b.vendorId}'),
-                    icon: const Icon(Icons.chat_bubble_outline),
-                    label: const Text('Message Vendor'),
-                  )),
-            ],
+            const SizedBox(height: 8),
+            Builder(
+              builder: (ctx) => Wrap(
+                spacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => ctx.push('/checklist/${b.id}'),
+                    icon: const Icon(Icons.checklist),
+                    label: const Text('Checklist'),
+                  ),
+                  if (b.vendorId != null)
+                    TextButton.icon(
+                      onPressed: () => ctx.push('/chat/${b.id}/${b.vendorId}'),
+                      icon: const Icon(Icons.chat_bubble_outline),
+                      label: const Text('Message'),
+                    ),
+                ],
+              ),
+            ),
           ],
         ),
       ),

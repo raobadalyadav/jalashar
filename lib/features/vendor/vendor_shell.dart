@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'package:go_router/go_router.dart';
+
 import '../../core/auth/auth_controller.dart';
 import '../../core/data/extra_repositories.dart';
 import '../../core/data/repositories.dart';
@@ -28,6 +30,11 @@ class _VendorShellState extends ConsumerState<VendorShell> {
       appBar: AppBar(
         title: const Text('Vendor Dashboard'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.account_balance_wallet_outlined),
+            tooltip: 'Payouts',
+            onPressed: () => context.push('/vendor/payouts'),
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => ref.read(authControllerProvider).signOut(),

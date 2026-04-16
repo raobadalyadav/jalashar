@@ -10,15 +10,23 @@ import '../../features/auth/role_selection_screen.dart';
 import '../../features/auth/sign_in_screen.dart';
 import '../../features/chat/chat_screen.dart';
 import '../../features/client/booking_flow_screen.dart';
+import '../../features/client/checklist_screen.dart';
 import '../../features/client/client_shell.dart';
 import '../../features/client/edit_profile_screen.dart';
+import '../../features/client/faq_screen.dart';
+import '../../features/client/referral_screen.dart';
 import '../../features/client/review_screen.dart';
+import '../../features/client/search_screen.dart';
+import '../../features/client/service_detail_screen.dart';
 import '../../features/client/settings_screen.dart';
+import '../../features/client/support_screen.dart';
 import '../../features/client/vendor_detail_screen.dart';
 import '../../features/client/wishlist_screen.dart';
 import '../../features/notifications/notifications_screen.dart';
 import '../../features/onboarding/onboarding_screen.dart';
 import '../../features/onboarding/splash_screen.dart';
+import '../../features/vendor/availability_screen.dart';
+import '../../features/vendor/payouts_screen.dart';
 import '../../features/vendor/vendor_shell.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -34,17 +42,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final isOnboarding = loc == '/onboarding';
       final isAuth = loc.startsWith('/auth');
 
-      // Splash + onboarding never redirect (they navigate manually)
       if (isSplash || isOnboarding) return null;
-
-      // Not logged in → must be on an auth route
-      if (session == null) {
-        return isAuth ? null : '/auth/sign-in';
-      }
-
-      // Logged in but on sign-in page → bounce to splash to re-route
+      if (session == null) return isAuth ? null : '/auth/sign-in';
       if (loc == '/auth/sign-in') return '/splash';
-
       return null;
     },
     routes: [
@@ -54,6 +54,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/auth/email-otp', builder: (_, _) => const EmailOtpScreen()),
       GoRoute(path: '/auth/role', builder: (_, _) => const RoleSelectionScreen()),
       GoRoute(path: '/home', builder: (_, _) => const ClientShell()),
+      GoRoute(path: '/search', builder: (_, _) => const SearchScreen()),
+      GoRoute(
+        path: '/service/:slug',
+        builder: (_, state) => ServiceDetailScreen(service: state.extra as ServicePackage),
+      ),
       GoRoute(
         path: '/vendor-detail/:id',
         builder: (_, state) => VendorDetailScreen(vendor: state.extra as Vendor),
@@ -67,6 +72,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             service: extra is ServicePackage ? extra : null,
           );
         },
+      ),
+      GoRoute(
+        path: '/checklist/:bookingId',
+        builder: (_, state) => ChecklistScreen(
+          bookingId: state.pathParameters['bookingId']!,
+          eventType: state.uri.queryParameters['eventType'],
+        ),
       ),
       GoRoute(
         path: '/chat/:bookingId/:receiverId',
@@ -86,6 +98,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/wishlist', builder: (_, _) => const WishlistScreen()),
       GoRoute(path: '/settings', builder: (_, _) => const SettingsScreen()),
       GoRoute(path: '/profile/edit', builder: (_, _) => const EditProfileScreen()),
+      GoRoute(path: '/faq', builder: (_, _) => const FaqScreen()),
+      GoRoute(path: '/support', builder: (_, _) => const SupportScreen()),
+      GoRoute(path: '/referral', builder: (_, _) => const ReferralScreen()),
+      GoRoute(
+        path: '/vendor/availability/:vendorId',
+        builder: (_, state) => AvailabilityScreen(
+          vendorId: state.pathParameters['vendorId']!,
+        ),
+      ),
+      GoRoute(path: '/vendor/payouts', builder: (_, _) => const PayoutsScreen()),
       GoRoute(path: '/vendor', builder: (_, _) => const VendorShell()),
       GoRoute(path: '/admin', builder: (_, _) => const AdminShell()),
     ],

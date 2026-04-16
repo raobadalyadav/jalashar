@@ -31,10 +31,16 @@ class HomeTab extends ConsumerWidget {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: TextField(
-                decoration: InputDecoration(
-                  hintText: 'home.search_hint'.tr(),
-                  prefixIcon: const Icon(Icons.search),
+              child: InkWell(
+                onTap: () => context.push('/search'),
+                borderRadius: BorderRadius.circular(14),
+                child: AbsorbPointer(
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'home.search_hint'.tr(),
+                      prefixIcon: const Icon(Icons.search),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -168,7 +174,7 @@ class _ServiceCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => context.push('/booking/new', extra: service),
+        onTap: () => context.push('/service/${service.slug}', extra: service),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
