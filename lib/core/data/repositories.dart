@@ -152,6 +152,19 @@ class BookingRepository {
 
   Future<void> updateStatus(String id, BookingStatus status) =>
       _client.from('bookings').update({'status': status.value}).eq('id', id);
+
+  Future<void> cancel(String id) =>
+      _client.from('bookings').update({'status': 'cancelled'}).eq('id', id);
+
+  Future<void> reschedule(String id, DateTime newDate) =>
+      _client.from('bookings').update({
+        'event_date': newDate.toIso8601String().substring(0, 10),
+      }).eq('id', id);
+
+  Future<Booking> getById(String id) async {
+    final row = await _client.from('bookings').select().eq('id', id).single();
+    return Booking.fromRow(row);
+  }
 }
 
 final bookingRepoProvider =
@@ -183,6 +196,13 @@ class MessageRepository {
       'content': content,
     });
   }
+
+  Future<void> markAllRead(String bookingId, String myId) =>
+      _client
+          .from('messages')
+          .update({'is_read': true})
+          .eq('booking_id', bookingId)
+          .eq('receiver_id', myId);
 }
 
 final messageRepoProvider =
@@ -206,6 +226,17 @@ class NotificationRepository {
 
   Future<void> markRead(String id) =>
       _client.from('notifications').update({'is_read': true}).eq('id', id);
+
+  Future<int> unreadCount() async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return 0;
+    final rows = await _client
+        .from('notifications')
+        .select()
+        .eq('user_id', uid)
+        .eq('is_read', false);
+    return (rows as List).length;
+  }
 }
 
 final notificationRepoProvider =
@@ -213,3 +244,6 @@ final notificationRepoProvider =
 
 final notificationsProvider = FutureProvider<List<AppNotification>>(
     (ref) => ref.watch(notificationRepoProvider).listMine());
+
+final notificationUnreadCountProvider = FutureProvider<int>(
+    (ref) => ref.watch(notificationRepoProvider).unreadCount());

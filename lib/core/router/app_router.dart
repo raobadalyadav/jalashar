@@ -9,17 +9,21 @@ import '../../features/auth/email_otp_screen.dart';
 import '../../features/auth/role_selection_screen.dart';
 import '../../features/auth/sign_in_screen.dart';
 import '../../features/chat/chat_screen.dart';
+import '../../features/client/booking_confirmation_screen.dart';
 import '../../features/client/booking_flow_screen.dart';
 import '../../features/client/checklist_screen.dart';
 import '../../features/client/client_shell.dart';
+import '../../features/client/compare_vendors_screen.dart';
 import '../../features/client/edit_profile_screen.dart';
 import '../../features/client/faq_screen.dart';
+import '../../features/client/privacy_policy_screen.dart';
 import '../../features/client/referral_screen.dart';
 import '../../features/client/review_screen.dart';
 import '../../features/client/search_screen.dart';
 import '../../features/client/service_detail_screen.dart';
 import '../../features/client/settings_screen.dart';
 import '../../features/client/support_screen.dart';
+import '../../features/client/terms_screen.dart';
 import '../../features/client/vendor_detail_screen.dart';
 import '../../features/client/wishlist_screen.dart';
 import '../../features/notifications/notifications_screen.dart';
@@ -53,15 +57,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/auth/sign-in', builder: (_, _) => const SignInScreen()),
       GoRoute(path: '/auth/email-otp', builder: (_, _) => const EmailOtpScreen()),
       GoRoute(path: '/auth/role', builder: (_, _) => const RoleSelectionScreen()),
+
+      // ── Client ──────────────────────────────────────────────────────────
       GoRoute(path: '/home', builder: (_, _) => const ClientShell()),
       GoRoute(path: '/search', builder: (_, _) => const SearchScreen()),
       GoRoute(
         path: '/service/:slug',
-        builder: (_, state) => ServiceDetailScreen(service: state.extra as ServicePackage),
+        builder: (_, state) =>
+            ServiceDetailScreen(service: state.extra as ServicePackage),
       ),
       GoRoute(
         path: '/vendor-detail/:id',
-        builder: (_, state) => VendorDetailScreen(vendor: state.extra as Vendor),
+        builder: (_, state) =>
+            VendorDetailScreen(vendor: state.extra as Vendor),
       ),
       GoRoute(
         path: '/booking/new',
@@ -72,6 +80,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             service: extra is ServicePackage ? extra : null,
           );
         },
+      ),
+      GoRoute(
+        path: '/booking/confirm/:bookingId',
+        builder: (_, state) => BookingConfirmationScreen(
+          bookingId: state.pathParameters['bookingId']!,
+        ),
       ),
       GoRoute(
         path: '/checklist/:bookingId',
@@ -101,6 +115,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/faq', builder: (_, _) => const FaqScreen()),
       GoRoute(path: '/support', builder: (_, _) => const SupportScreen()),
       GoRoute(path: '/referral', builder: (_, _) => const ReferralScreen()),
+      GoRoute(path: '/privacy-policy', builder: (_, _) => const PrivacyPolicyScreen()),
+      GoRoute(path: '/terms', builder: (_, _) => const TermsScreen()),
+      GoRoute(path: '/compare', builder: (_, _) => const CompareVendorsScreen()),
+
+      // ── Vendor ──────────────────────────────────────────────────────────
       GoRoute(
         path: '/vendor/availability/:vendorId',
         builder: (_, state) => AvailabilityScreen(
@@ -109,6 +128,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/vendor/payouts', builder: (_, _) => const PayoutsScreen()),
       GoRoute(path: '/vendor', builder: (_, _) => const VendorShell()),
+
+      // ── Admin ────────────────────────────────────────────────────────────
       GoRoute(path: '/admin', builder: (_, _) => const AdminShell()),
     ],
     errorBuilder: (_, state) =>

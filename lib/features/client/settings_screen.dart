@@ -77,8 +77,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _Section(title: 'Support', children: [
             _tile(Icons.help_outline, 'FAQ', onTap: () => context.push('/faq')),
             _tile(Icons.support_agent, 'Contact Support', onTap: () => context.push('/support')),
-            _tile(Icons.privacy_tip_outlined, 'Privacy Policy'),
-            _tile(Icons.description_outlined, 'Terms of Service'),
+            _tile(Icons.privacy_tip_outlined, 'Privacy Policy',
+                onTap: () => context.push('/privacy-policy')),
+            _tile(Icons.description_outlined, 'Terms of Service',
+                onTap: () => context.push('/terms')),
           ]),
           const SizedBox(height: 8),
           Padding(

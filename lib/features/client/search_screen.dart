@@ -31,8 +31,6 @@ class SearchScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final results = ref.watch(_searchResultsProvider);
-    final cats = ref.watch(categoriesProvider);
-    final cities = ref.watch(citiesProvider);
     final cat = ref.watch(_filterCategoryProvider);
     final city = ref.watch(_filterCityProvider);
     final minRating = ref.watch(_filterMinRatingProvider);

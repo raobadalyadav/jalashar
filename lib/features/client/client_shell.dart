@@ -1,21 +1,23 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/data/repositories.dart';
 import 'bookings_tab.dart';
 import 'explore_tab.dart';
 import 'home_tab.dart';
 import 'profile_tab.dart';
 
-class ClientShell extends StatefulWidget {
+class ClientShell extends ConsumerStatefulWidget {
   const ClientShell({super.key});
   @override
-  State<ClientShell> createState() => _ClientShellState();
+  ConsumerState<ClientShell> createState() => _ClientShellState();
 }
 
-class _ClientShellState extends State<ClientShell> {
+class _ClientShellState extends ConsumerState<ClientShell> {
   int _index = 0;
 
-  final _tabs = const [
+  static const _tabs = [
     HomeTab(),
     ExploreTab(),
     BookingsTab(),
@@ -24,6 +26,9 @@ class _ClientShellState extends State<ClientShell> {
 
   @override
   Widget build(BuildContext context) {
+    final unreadAsync = ref.watch(notificationUnreadCountProvider);
+    final unread = unreadAsync.valueOrNull ?? 0;
+
     return Scaffold(
       body: IndexedStack(index: _index, children: _tabs),
       bottomNavigationBar: NavigationBar(
@@ -43,8 +48,20 @@ class _ClientShellState extends State<ClientShell> {
               selectedIcon: const Icon(Icons.event_note),
               label: 'nav.bookings'.tr()),
           NavigationDestination(
-              icon: const Icon(Icons.person_outline),
-              selectedIcon: const Icon(Icons.person),
+              icon: Badge(
+                isLabelVisible: unread > 0,
+                label: unread > 9
+                    ? const Text('9+')
+                    : Text('$unread'),
+                child: const Icon(Icons.person_outline),
+              ),
+              selectedIcon: Badge(
+                isLabelVisible: unread > 0,
+                label: unread > 9
+                    ? const Text('9+')
+                    : Text('$unread'),
+                child: const Icon(Icons.person),
+              ),
               label: 'nav.profile'.tr()),
         ],
       ),
