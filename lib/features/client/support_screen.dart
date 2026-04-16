@@ -380,25 +380,27 @@ class _TicketDetailScreenState extends ConsumerState<TicketDetailScreen> {
                 }
                 final msgs = snap.data ?? [];
                 if (msgs.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.chat_bubble_outline,
-                            size: 40,
-                            color: AppColors.slate
-                                .withValues(alpha: 0.4)),
-                        const SizedBox(height: 8),
-                        const Text('No replies yet',
-                            style: TextStyle(
-                                color: AppColors.slate,
-                                fontSize: 13)),
-                        const SizedBox(height: 4),
-                        const Text('Our team will respond shortly',
-                            style: TextStyle(
-                                color: AppColors.slate,
-                                fontSize: 12)),
-                      ],
+                  return SingleChildScrollView(
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 32),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.chat_bubble_outline,
+                                size: 40,
+                                color: AppColors.slate.withValues(alpha: 0.4)),
+                            const SizedBox(height: 8),
+                            const Text('No replies yet',
+                                style: TextStyle(
+                                    color: AppColors.slate, fontSize: 13)),
+                            const SizedBox(height: 4),
+                            const Text('Our team will respond shortly',
+                                style: TextStyle(
+                                    color: AppColors.slate, fontSize: 12)),
+                          ],
+                        ),
+                      ),
                     ),
                   );
                 }

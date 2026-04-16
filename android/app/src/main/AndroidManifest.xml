@@ -1,44 +1,94 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- ============ PERMISSIONS ============ -->
-    <!-- Network -->
+    <!-- ══════════════════════════════════════════════════
+         NETWORK
+    ══════════════════════════════════════════════════ -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
 
-    <!-- Notifications (Android 13+) -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-
-    <!-- Media / storage -->
+    <!-- ══════════════════════════════════════════════════
+         CAMERA
+    ══════════════════════════════════════════════════ -->
     <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
+
+    <!-- ══════════════════════════════════════════════════
+         STORAGE / MEDIA  (scoped storage for API 33+)
+    ══════════════════════════════════════════════════ -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
+    <!-- Legacy storage for API ≤ 32 -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="29"/>
+    <!-- Visual media picker (Android 14+) -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED"/>
 
-    <!-- Location -->
+    <!-- ══════════════════════════════════════════════════
+         MICROPHONE / AUDIO
+    ══════════════════════════════════════════════════ -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+
+    <!-- ══════════════════════════════════════════════════
+         LOCATION
+    ══════════════════════════════════════════════════ -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <!-- Background location — only request if actually needed at runtime -->
+    <!-- <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/> -->
 
-    <!-- Microphone / audio (for chat voice notes, video calls) -->
-    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <!-- ══════════════════════════════════════════════════
+         NOTIFICATIONS
+    ══════════════════════════════════════════════════ -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
 
-    <!-- Biometric (local_auth) -->
+    <!-- ══════════════════════════════════════════════════
+         PHONE / CALL
+    ══════════════════════════════════════════════════ -->
+    <uses-permission android:name="android.permission.CALL_PHONE"/>
+    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+
+    <!-- ══════════════════════════════════════════════════
+         CONTACTS
+    ══════════════════════════════════════════════════ -->
+    <uses-permission android:name="android.permission.READ_CONTACTS"/>
+
+    <!-- ══════════════════════════════════════════════════
+         BIOMETRIC / SECURITY
+    ══════════════════════════════════════════════════ -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
     <uses-permission android:name="android.permission.USE_FINGERPRINT"/>
 
-    <!-- Vibrate for notifications -->
-    <uses-permission android:name="android.permission.VIBRATE"/>
+    <!-- ══════════════════════════════════════════════════
+         BLUETOOTH (for proximity / device scanning — optional)
+    ══════════════════════════════════════════════════ -->
+    <uses-permission android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
 
-    <!-- Contacts (optional: invite friends) -->
-    <uses-permission android:name="android.permission.READ_CONTACTS"/>
-
+    <!-- ══════════════════════════════════════════════════
+         APPLICATION
+    ══════════════════════════════════════════════════ -->
     <application
         android:label="Jalaram Events"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:usesCleartextTraffic="false">
+        android:usesCleartextTraffic="false"
+        android:hardwareAccelerated="true"
+        android:largeHeap="true">
 
         <activity
             android:name=".MainActivity"
@@ -52,21 +102,45 @@
             <meta-data
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"/>
+
+            <!-- Launcher -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
 
-            <!-- Deep linking: jalaram:// -->
+            <!-- Deep link: jalaram:// -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="jalaram"/>
             </intent-filter>
+
+            <!-- HTTPS deep link: jalaram.app -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https" android:host="jalaram.app"/>
+            </intent-filter>
         </activity>
 
-        <!-- ============ FACEBOOK (uncomment when real App ID is set in strings.xml) ============ -->
+        <!-- ══ Firebase Cloud Messaging ══ -->
+        <service
+            android:name="com.google.firebase.messaging.FirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT"/>
+            </intent-filter>
+        </service>
+
+        <!-- ══ Google Maps API key ══ -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${MAPS_API_KEY}"/>
+
+        <!-- ══ Facebook Login (uncomment when App ID set in strings.xml) ══ -->
         <!--
         <meta-data
             android:name="com.facebook.sdk.ApplicationId"
@@ -96,16 +170,63 @@
             android:value="2"/>
     </application>
 
+    <!-- ══ Intent queries (url_launcher, WhatsApp, phone, maps) ══ -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
-        <!-- For url_launcher https links -->
         <intent>
             <action android:name="android.intent.action.VIEW"/>
             <category android:name="android.intent.category.BROWSABLE"/>
             <data android:scheme="https"/>
         </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="http"/>
+        </intent>
+        <!-- WhatsApp -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="whatsapp"/>
+        </intent>
+        <!-- Phone dialer -->
+        <intent>
+            <action android:name="android.intent.action.DIAL"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.CALL"/>
+        </intent>
+        <!-- Google Maps -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="geo"/>
+        </intent>
+        <!-- Instagram -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="instagram"/>
+        </intent>
+        <!-- YouTube -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="youtube"/>
+        </intent>
+        <!-- Email -->
+        <intent>
+            <action android:name="android.intent.action.SENDTO"/>
+            <data android:scheme="mailto"/>
+        </intent>
+        <!-- SMS -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="sms"/>
+        </intent>
+        <!-- Share / file providers -->
+        <intent>
+            <action android:name="android.intent.action.SEND"/>
+            <data android:mimeType="*/*"/>
+        </intent>
     </queries>
+
 </manifest>

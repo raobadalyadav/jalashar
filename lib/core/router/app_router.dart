@@ -53,7 +53,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       if (isSplash || isOnboarding) return null;
       if (session == null) return isAuth ? null : '/auth/sign-in';
-      if (loc == '/auth/sign-in') return '/splash';
+      // After sign-in via any auth method (email-OTP, Google, Facebook),
+      // send to splash so it can check role and gate incomplete profiles.
+      if (isAuth && loc != '/auth/role') return '/splash';
       return null;
     },
     routes: [

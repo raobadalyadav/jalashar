@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Jalashar</string>
+	<string>Jalaram Events</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -26,6 +26,27 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+
+	<!-- ══════════════════════════════════════════
+	     ORIENTATION
+	══════════════════════════════════════════ -->
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+
+	<!-- ══════════════════════════════════════════
+	     SCENE / LAUNCH
+	══════════════════════════════════════════ -->
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -53,39 +74,130 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
-	<key>UISupportedInterfaceOrientations</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-	<key>UISupportedInterfaceOrientations~ipad</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
 
-	<!-- ============ PERMISSION USAGE DESCRIPTIONS ============ -->
+	<!-- ══════════════════════════════════════════
+	     CAMERA
+	══════════════════════════════════════════ -->
 	<key>NSCameraUsageDescription</key>
-	<string>Jalaram Events needs camera access to let you upload photos for your profile and vendor portfolio.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Jalaram Events needs photo library access to upload profile pictures and portfolio images.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Jalaram Events saves booking receipts and event photos to your library.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Jalaram Events uses the microphone for voice messages with vendors.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Jalaram Events uses your location to find trusted vendors near you.</string>
-	<key>NSContactsUsageDescription</key>
-	<string>Jalaram Events accesses contacts so you can invite friends to your events.</string>
-	<key>NSFaceIDUsageDescription</key>
-	<string>Jalaram Events uses Face ID to securely lock the app.</string>
-	<key>NSUserTrackingUsageDescription</key>
-	<string>We use this to personalise vendor recommendations.</string>
+	<string>Jalaram Events uses your camera to capture profile photos, portfolio images, and event moments.</string>
 
-	<!-- ============ FACEBOOK LOGIN ============ -->
+	<!-- ══════════════════════════════════════════
+	     PHOTO LIBRARY
+	══════════════════════════════════════════ -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Jalaram Events accesses your photo library to upload profile pictures, portfolio images, and event photos.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Jalaram Events saves booking confirmations and event photos to your photo library.</string>
+
+	<!-- ══════════════════════════════════════════
+	     MICROPHONE
+	══════════════════════════════════════════ -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Jalaram Events uses your microphone for voice messages and audio recording in vendor chats.</string>
+
+	<!-- ══════════════════════════════════════════
+	     LOCATION
+	══════════════════════════════════════════ -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Jalaram Events uses your location to show nearby vendors and help you discover event services in your city.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Jalaram Events uses your location in the background to provide real-time vendor proximity updates.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Jalaram Events uses your location to find and recommend nearby event vendors.</string>
+
+	<!-- ══════════════════════════════════════════
+	     CONTACTS
+	══════════════════════════════════════════ -->
+	<key>NSContactsUsageDescription</key>
+	<string>Jalaram Events reads your contacts so you can easily invite friends and family to your events.</string>
+
+	<!-- ══════════════════════════════════════════
+	     FACE ID / BIOMETRICS
+	══════════════════════════════════════════ -->
+	<key>NSFaceIDUsageDescription</key>
+	<string>Jalaram Events uses Face ID to securely authenticate and protect your account.</string>
+
+	<!-- ══════════════════════════════════════════
+	     NOTIFICATIONS
+	══════════════════════════════════════════ -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
+
+	<!-- ══════════════════════════════════════════
+	     MEDIA LIBRARY (music / audio files)
+	══════════════════════════════════════════ -->
+	<key>NSAppleMusicUsageDescription</key>
+	<string>Jalaram Events may access your music library for event background music selection.</string>
+
+	<!-- ══════════════════════════════════════════
+	     MOTION & FITNESS
+	══════════════════════════════════════════ -->
+	<key>NSMotionUsageDescription</key>
+	<string>Jalaram Events uses motion data to enhance your experience during event navigation.</string>
+
+	<!-- ══════════════════════════════════════════
+	     BLUETOOTH
+	══════════════════════════════════════════ -->
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Jalaram Events uses Bluetooth to connect with nearby event devices and vendors.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Jalaram Events uses Bluetooth to connect with nearby event devices.</string>
+
+	<!-- ══════════════════════════════════════════
+	     CALENDAR
+	══════════════════════════════════════════ -->
+	<key>NSCalendarsUsageDescription</key>
+	<string>Jalaram Events adds your booked events to your calendar so you never miss an event date.</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>Jalaram Events creates reminders for upcoming event dates and booking deadlines.</string>
+
+	<!-- ══════════════════════════════════════════
+	     SPEECH RECOGNITION
+	══════════════════════════════════════════ -->
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Jalaram Events uses speech recognition for voice search of vendors and services.</string>
+
+	<!-- ══════════════════════════════════════════
+	     USER TRACKING (ATT — iOS 14.5+)
+	══════════════════════════════════════════ -->
+	<key>NSUserTrackingUsageDescription</key>
+	<string>Jalaram Events uses this to personalise vendor recommendations and improve your event planning experience.</string>
+
+	<!-- ══════════════════════════════════════════
+	     NETWORK (local)
+	══════════════════════════════════════════ -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Jalaram Events accesses the local network to discover nearby event services.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_http._tcp</string>
+	</array>
+
+	<!-- ══════════════════════════════════════════
+	     APP TRANSPORT SECURITY
+	══════════════════════════════════════════ -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>supabase.co</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<false/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
+
+	<!-- ══════════════════════════════════════════
+	     DEEP LINKS & URL SCHEMES
+	══════════════════════════════════════════ -->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -93,13 +205,19 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<!-- TODO: Replace with fb<FACEBOOK_APP_ID> -->
-				<string>fbYOUR_FACEBOOK_APP_ID</string>
 				<!-- Deep link scheme -->
 				<string>jalaram</string>
+				<!-- TODO: Replace with fb<FACEBOOK_APP_ID> when you have a real App ID -->
+				<string>fbYOUR_FACEBOOK_APP_ID</string>
+				<!-- Google Sign-In reverse client ID — get from GoogleService-Info.plist -->
+				<string>com.googleusercontent.apps.YOUR_GOOGLE_CLIENT_ID</string>
 			</array>
 		</dict>
 	</array>
+
+	<!-- ══════════════════════════════════════════
+	     FACEBOOK LOGIN
+	══════════════════════════════════════════ -->
 	<key>FacebookAppID</key>
 	<string>YOUR_FACEBOOK_APP_ID</string>
 	<key>FacebookClientToken</key>
@@ -112,13 +230,14 @@
 		<string>fb-messenger-share-api</string>
 		<string>fbauth2</string>
 		<string>fbshareextension</string>
+		<string>whatsapp</string>
+		<string>instagram</string>
+		<string>youtube</string>
+		<string>tel</string>
+		<string>mailto</string>
+		<string>googlemaps</string>
+		<string>comgooglemaps</string>
 	</array>
 
-	<!-- ATS: allow HTTPS only (secure) -->
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSAllowsArbitraryLoads</key>
-		<false/>
-	</dict>
 </dict>
 </plist>
