@@ -869,6 +869,7 @@ class _VendorProfileState extends ConsumerState<_VendorProfile> {
   List<String> _serviceCities = [];
   List<String> _languages = [];
   bool _fullyBooked = false;
+  bool _isAcceptingBookings = true;
   Map<String, dynamic> _meta = {};
   final Map<String, TextEditingController> _metaCtrls = {};
   bool _loading = false;
@@ -926,6 +927,7 @@ class _VendorProfileState extends ConsumerState<_VendorProfile> {
           _serviceCities = List<String>.from(vendor.serviceCities);
           _languages = List<String>.from(vendor.languages);
           _fullyBooked = vendor.fullyBooked;
+          _isAcceptingBookings = vendor.isAcceptingBookings;
           _meta = Map<String, dynamic>.from(vendor.meta);
         });
       }
@@ -1006,6 +1008,7 @@ class _VendorProfileState extends ConsumerState<_VendorProfile> {
             youtubeUrl: _youtube.text.trim(),
             facebookUrl: _facebook.text.trim(),
             fullyBooked: _fullyBooked,
+            isAcceptingBookings: _isAcceptingBookings,
           );
       if (mounted) AppSnack.success(context, 'Profile saved successfully');
     } catch (e) {
@@ -1384,7 +1387,39 @@ class _VendorProfileState extends ConsumerState<_VendorProfile> {
               icon: Icons.event_available_outlined,
               children: [
                 Row(children: [
-                  const Icon(Icons.block_rounded, color: AppColors.danger, size: 18),
+                  Icon(
+                    _isAcceptingBookings
+                        ? Icons.check_circle_outline_rounded
+                        : Icons.do_not_disturb_on_rounded,
+                    color: _isAcceptingBookings
+                        ? AppColors.success
+                        : AppColors.warning,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text('Accepting New Bookings',
+                        style: TextStyle(fontWeight: FontWeight.w600)),
+                  ),
+                  Switch.adaptive(
+                    value: _isAcceptingBookings,
+                    activeThumbColor: AppColors.success,
+                    onChanged: (v) =>
+                        setState(() => _isAcceptingBookings = v),
+                  ),
+                ]),
+                if (!_isAcceptingBookings)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6, left: 28),
+                    child: Text(
+                      'Clients will see you\'re not taking new bookings. They can still message you.',
+                      style: TextStyle(fontSize: 12, color: AppColors.warning),
+                    ),
+                  ),
+                const SizedBox(height: 12),
+                Row(children: [
+                  const Icon(Icons.block_rounded,
+                      color: AppColors.danger, size: 18),
                   const SizedBox(width: 10),
                   const Expanded(
                     child: Text('Mark as Fully Booked',

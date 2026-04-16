@@ -98,6 +98,13 @@ class Vendor {
   final String? youtubeUrl;
   final String? facebookUrl;
   final Map<String, dynamic> meta;
+  final bool isAcceptingBookings;
+  final int responseRate;
+  final bool badgeTop10;
+  final int earlyBirdDiscount;
+  final List<String> videoUrls;
+  final DateTime? createdAt;
+  final int? acceptanceHours;
 
   const Vendor({
     required this.id,
@@ -114,10 +121,15 @@ class Vendor {
     this.basePrice,
     this.isFeatured = false,
     this.fullyBooked = false,
+    this.isAcceptingBookings = true,
+    this.responseRate = 100,
+    this.badgeTop10 = false,
+    this.earlyBirdDiscount = 0,
     this.eventsCount = 0,
     this.yearsExperience = 0,
     this.profileViews = 0,
     this.portfolioUrls = const [],
+    this.videoUrls = const [],
     this.serviceCities = const [],
     this.languages = const [],
     this.name,
@@ -128,6 +140,8 @@ class Vendor {
     this.youtubeUrl,
     this.facebookUrl,
     this.meta = const {},
+    this.createdAt,
+    this.acceptanceHours,
   });
 
   factory Vendor.fromRow(Map<String, dynamic> r) {
@@ -164,6 +178,13 @@ class Vendor {
       youtubeUrl: r['youtube_url'] as String?,
       facebookUrl: r['facebook_url'] as String?,
       meta: (r['meta'] as Map<String, dynamic>?) ?? const {},
+      isAcceptingBookings: (r['is_accepting_bookings'] as bool?) ?? true,
+      responseRate: (r['response_rate'] as int?) ?? 100,
+      badgeTop10: (r['badge_top_10'] as bool?) ?? false,
+      earlyBirdDiscount: (r['early_bird_discount'] as int?) ?? 0,
+      videoUrls: (r['video_urls'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+      createdAt: r['created_at'] != null ? DateTime.tryParse(r['created_at'].toString()) : null,
+      acceptanceHours: r['acceptance_hours'] as int?,
     );
   }
 }

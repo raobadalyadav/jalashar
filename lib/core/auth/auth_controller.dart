@@ -112,13 +112,17 @@ class AuthController {
     required String name,
     required UserRole role,
     String? phone,
+    String? city,
+    String? avatarUrl,
   }) async {
     final uid = _client.auth.currentUser!.id;
     await _client.from('users').upsert({
       'id': uid,
       'name': name,
       'role': role.value,
-      if (phone != null) 'phone': phone,
+      if (phone != null && phone.isNotEmpty) 'phone': phone,
+      if (city != null && city.isNotEmpty) 'city': city,
+      if (avatarUrl != null) 'avatar_url': avatarUrl,
     });
   }
 }

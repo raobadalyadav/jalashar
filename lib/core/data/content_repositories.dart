@@ -167,8 +167,10 @@ class ReferralRepository {
 final referralRepoProvider =
     Provider((ref) => ReferralRepository(ref.watch(supabaseClientProvider)));
 
-final myReferralsProvider =
-    FutureProvider((ref) => ref.watch(referralRepoProvider).listMine());
+final myReferralsProvider = FutureProvider((ref) {
+  ref.watch(authStateProvider);
+  return ref.watch(referralRepoProvider).listMine();
+});
 
 // ========== PAYOUTS ==========
 class PayoutRepository {
@@ -189,8 +191,10 @@ class PayoutRepository {
 final payoutRepoProvider =
     Provider((ref) => PayoutRepository(ref.watch(supabaseClientProvider)));
 
-final myPayoutsProvider =
-    FutureProvider((ref) => ref.watch(payoutRepoProvider).listForVendor());
+final myPayoutsProvider = FutureProvider((ref) {
+  ref.watch(authStateProvider);
+  return ref.watch(payoutRepoProvider).listForVendor();
+});
 
 // ========== SUPPORT TICKETS ==========
 class SupportRepository {
@@ -227,8 +231,10 @@ class SupportRepository {
 final supportRepoProvider =
     Provider((ref) => SupportRepository(ref.watch(supabaseClientProvider)));
 
-final myTicketsProvider =
-    FutureProvider((ref) => ref.watch(supportRepoProvider).listMine());
+final myTicketsProvider = FutureProvider((ref) {
+  ref.watch(authStateProvider);
+  return ref.watch(supportRepoProvider).listMine();
+});
 
 // ========== SUPPORT TICKET MESSAGES ==========
 class SupportMessageRepository {
@@ -269,6 +275,15 @@ class AvailabilityRepository {
     return (rows as List)
         .map((e) => DateTime.parse(e['blocked_date'] as String))
         .toSet();
+  }
+
+  Future<Set<String>> blockedVendorIdsOnDate(DateTime date) async {
+    final d = date.toIso8601String().substring(0, 10);
+    final rows = await _client
+        .from('vendor_availability')
+        .select('vendor_id')
+        .eq('blocked_date', d);
+    return (rows as List).map((e) => e['vendor_id'] as String).toSet();
   }
 
   Future<void> toggleBlock(String vendorId, DateTime date) async {

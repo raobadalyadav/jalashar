@@ -12,6 +12,7 @@ import '../../core/utils/formatters.dart';
 import 'compare_vendors_screen.dart';
 
 final _selectedCategoryProvider = StateProvider<String?>((_) => null);
+final _gridModeProvider = StateProvider<bool>((_) => false);
 
 class ExploreTab extends ConsumerWidget {
   const ExploreTab({super.key});
@@ -35,11 +36,20 @@ class ExploreTab extends ConsumerWidget {
     final cat = ref.watch(_selectedCategoryProvider);
     final vendors = ref.watch(vendorListProvider(cat));
     final compareList = ref.watch(compareVendorsProvider);
+    final gridMode = ref.watch(_gridModeProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Explore Vendors'),
         actions: [
+          IconButton(
+            icon: Icon(gridMode
+                ? Icons.view_list_rounded
+                : Icons.grid_view_rounded),
+            tooltip: gridMode ? 'List view' : 'Grid view',
+            onPressed: () =>
+                ref.read(_gridModeProvider.notifier).state = !gridMode,
+          ),
           IconButton(
             icon: const Icon(Icons.search_rounded),
             onPressed: () => context.push('/search'),
@@ -104,18 +114,37 @@ class ExploreTab extends ConsumerWidget {
                   subtitle: 'Try a different category',
                 );
               }
+              final bottomPad = compareList.isEmpty ? 16.0 : 96.0;
               return RefreshIndicator(
                 color: AppColors.violet,
                 onRefresh: () async => ref.invalidate(vendorListProvider),
-                child: ListView.builder(
-                  padding: EdgeInsets.fromLTRB(
-                      16, 16, 16, compareList.isEmpty ? 16 : 96),
-                  itemCount: list.length,
-                  itemBuilder: (_, i) => _VendorCard(vendor: list[i])
-                      .animate(delay: Duration(milliseconds: i * 60))
-                      .fadeIn()
-                      .slideY(begin: 0.1),
-                ),
+                child: gridMode
+                    ? GridView.builder(
+                        padding: EdgeInsets.fromLTRB(16, 16, 16, bottomPad),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 12,
+                          crossAxisSpacing: 12,
+                          childAspectRatio: 0.78,
+                        ),
+                        itemCount: list.length,
+                        itemBuilder: (_, i) =>
+                            _VendorGridCard(vendor: list[i])
+                                .animate(
+                                    delay: Duration(milliseconds: i * 40))
+                                .fadeIn(),
+                      )
+                    : ListView.builder(
+                        padding:
+                            EdgeInsets.fromLTRB(16, 16, 16, bottomPad),
+                        itemCount: list.length,
+                        itemBuilder: (_, i) => _VendorCard(vendor: list[i])
+                            .animate(
+                                delay: Duration(milliseconds: i * 60))
+                            .fadeIn()
+                            .slideY(begin: 0.1),
+                      ),
               );
             },
           ),
@@ -293,6 +322,110 @@ class _VendorCard extends ConsumerWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _VendorGridCard extends ConsumerWidget {
+  const _VendorGridCard({required this.vendor});
+  final Vendor vendor;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => context.push('/vendor-detail/${vendor.id}', extra: vendor),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  vendor.avatarUrl != null
+                      ? CachedNetworkImage(
+                          imageUrl: vendor.avatarUrl!,
+                          fit: BoxFit.cover,
+                          placeholder: (c, u) => Container(
+                              color: context.midSurface),
+                        )
+                      : Container(
+                          color: context.midSurface,
+                          child: const Icon(Icons.storefront_rounded,
+                              color: AppColors.violet, size: 40),
+                        ),
+                  if (vendor.isVerified)
+                    Positioned(
+                      top: 6,
+                      right: 6,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: AppColors.info,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.verified_rounded,
+                            color: Colors.white, size: 12),
+                      ),
+                    ),
+                  if (vendor.badgeTop10)
+                    Positioned(
+                      top: 6,
+                      left: 6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.gold,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text('Top 10',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800)),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    vendor.name ?? 'Vendor',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 13),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Row(children: [
+                    const Icon(Icons.star_rounded,
+                        color: AppColors.gold, size: 12),
+                    const SizedBox(width: 2),
+                    Text(vendor.ratingAvg.toStringAsFixed(1),
+                        style: const TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.w600)),
+                    const Spacer(),
+                    if (vendor.basePrice != null)
+                      Text(
+                        Fmt.currency(vendor.basePrice!),
+                        style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.violet),
+                      ),
+                  ]),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

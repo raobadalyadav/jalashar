@@ -72,6 +72,7 @@ class VendorRepository {
     String? facebookUrl,
     int maxEventsPerDay = 1,
     bool fullyBooked = false,
+    bool isAcceptingBookings = true,
   }) async {
     final uid = _client.auth.currentUser!.id;
     await _client.from('vendors').upsert({
@@ -94,6 +95,7 @@ class VendorRepository {
       if (facebookUrl != null && facebookUrl.isNotEmpty) 'facebook_url': facebookUrl,
       'max_events_per_day': maxEventsPerDay,
       'fully_booked': fullyBooked,
+      'is_accepting_bookings': isAcceptingBookings,
     });
   }
 
@@ -214,10 +216,16 @@ class BookingRepository {
 final bookingRepoProvider =
     Provider((ref) => BookingRepository(ref.watch(supabaseClientProvider)));
 
-final myBookingsProvider = FutureProvider<List<Booking>>(
-    (ref) => ref.watch(bookingRepoProvider).listMine());
-final vendorBookingsProvider = FutureProvider<List<Booking>>(
-    (ref) => ref.watch(bookingRepoProvider).listForVendor());
+final myBookingsProvider = FutureProvider<List<Booking>>((ref) {
+  // Re-fetch when auth session changes to prevent cross-user data leak
+  ref.watch(authStateProvider);
+  return ref.watch(bookingRepoProvider).listMine();
+});
+
+final vendorBookingsProvider = FutureProvider<List<Booking>>((ref) {
+  ref.watch(authStateProvider);
+  return ref.watch(bookingRepoProvider).listForVendor();
+});
 
 // ========== MESSAGES ==========
 class MessageRepository {

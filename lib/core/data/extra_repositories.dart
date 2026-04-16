@@ -68,6 +68,10 @@ class Review {
   final String? comment;
   final DateTime createdAt;
   final String? clientName;
+  final List<String> photos;
+  final int helpfulCount;
+  final int unhelpfulCount;
+  final bool isVerifiedBooking;
 
   const Review({
     required this.id,
@@ -78,6 +82,10 @@ class Review {
     required this.createdAt,
     this.comment,
     this.clientName,
+    this.photos = const [],
+    this.helpfulCount = 0,
+    this.unhelpfulCount = 0,
+    this.isVerifiedBooking = false,
   });
 
   factory Review.fromRow(Map<String, dynamic> r) => Review(
@@ -89,6 +97,10 @@ class Review {
         comment: r['comment'] as String?,
         createdAt: DateTime.parse(r['created_at'] as String),
         clientName: (r['users'] as Map?)?['name'] as String?,
+        photos: (r['photos'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+        helpfulCount: (r['helpful_count'] as int?) ?? 0,
+        unhelpfulCount: (r['unhelpful_count'] as int?) ?? 0,
+        isVerifiedBooking: (r['is_verified_booking'] as bool?) ?? false,
       );
 }
 
@@ -460,3 +472,107 @@ final myVendorViewStatsProvider = FutureProvider<VendorViewStats?>((ref) async {
     views30d: (row['views_30d'] as num?)?.toInt() ?? 0,
   );
 });
+
+// ========== REVIEW VOTES ==========
+class ReviewVoteRepository {
+  ReviewVoteRepository(this._client);
+  final SupabaseClient _client;
+
+  Future<Map<String, int>> votesForVendor(String vendorId) async {
+    final rows = await _client
+        .from('reviews')
+        .select('id, review_votes(is_helpful)')
+        .eq('vendor_id', vendorId);
+    final Map<String, int> helpful = {};
+    for (final r in rows as List) {
+      final votes = (r['review_votes'] as List?) ?? [];
+      helpful[r['id'] as String] =
+          votes.where((v) => v['is_helpful'] == true).length;
+    }
+    return helpful;
+  }
+
+  Future<void> vote(String reviewId, bool isHelpful) async {
+    final uid = _client.auth.currentUser!.id;
+    await _client.from('review_votes').upsert({
+      'review_id': reviewId,
+      'user_id': uid,
+      'is_helpful': isHelpful,
+    }, onConflict: 'review_id,user_id');
+  }
+
+  Future<void> removeVote(String reviewId) async {
+    final uid = _client.auth.currentUser!.id;
+    await _client
+        .from('review_votes')
+        .delete()
+        .eq('review_id', reviewId)
+        .eq('user_id', uid);
+  }
+}
+
+final reviewVoteRepoProvider =
+    Provider((ref) => ReviewVoteRepository(ref.watch(supabaseClientProvider)));
+
+// ========== BLOCKED VENDORS ==========
+class BlockedVendorRepository {
+  BlockedVendorRepository(this._client);
+  final SupabaseClient _client;
+
+  Future<bool> isBlocked(String vendorId) async {
+    final uid = _client.auth.currentUser!.id;
+    final row = await _client
+        .from('blocked_vendors')
+        .select('vendor_id')
+        .eq('user_id', uid)
+        .eq('vendor_id', vendorId)
+        .maybeSingle();
+    return row != null;
+  }
+
+  Future<void> block(String vendorId) async {
+    final uid = _client.auth.currentUser!.id;
+    await _client
+        .from('blocked_vendors')
+        .insert({'user_id': uid, 'vendor_id': vendorId});
+  }
+
+  Future<void> unblock(String vendorId) async {
+    final uid = _client.auth.currentUser!.id;
+    await _client
+        .from('blocked_vendors')
+        .delete()
+        .eq('user_id', uid)
+        .eq('vendor_id', vendorId);
+  }
+}
+
+final blockedVendorRepoProvider =
+    Provider((ref) => BlockedVendorRepository(ref.watch(supabaseClientProvider)));
+
+// ========== VENDOR BUSY TOGGLE ==========
+class VendorStatusRepository {
+  VendorStatusRepository(this._client);
+  final SupabaseClient _client;
+
+  Future<void> setAccepting(bool accepting) async {
+    final uid = _client.auth.currentUser!.id;
+    await _client
+        .from('vendors')
+        .update({'is_accepting_bookings': accepting})
+        .eq('user_id', uid);
+  }
+
+  Future<bool?> getAccepting() async {
+    final uid = _client.auth.currentUser!.id;
+    final row = await _client
+        .from('vendors')
+        .select('is_accepting_bookings')
+        .eq('user_id', uid)
+        .maybeSingle();
+    return row?['is_accepting_bookings'] as bool?;
+  }
+}
+
+final vendorStatusRepoProvider =
+    Provider((ref) => VendorStatusRepository(ref.watch(supabaseClientProvider)));

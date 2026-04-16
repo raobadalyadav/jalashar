@@ -14,6 +14,7 @@ import '../../core/models/vendor_meta.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import 'compare_vendors_screen.dart';
+import 'fullscreen_gallery_screen.dart';
 
 class VendorDetailScreen extends ConsumerStatefulWidget {
   const VendorDetailScreen({super.key, required this.vendor});
@@ -23,13 +24,18 @@ class VendorDetailScreen extends ConsumerStatefulWidget {
   ConsumerState<VendorDetailScreen> createState() => _VendorDetailScreenState();
 }
 
+enum _ReviewSort { newest, topRated }
+
 class _VendorDetailScreenState extends ConsumerState<VendorDetailScreen> {
   bool _saved = false;
+  bool _blocked = false;
+  _ReviewSort _reviewSort = _ReviewSort.newest;
 
   @override
   void initState() {
     super.initState();
     _loadSaved();
+    _loadBlocked();
     _trackView();
   }
 
@@ -162,9 +168,50 @@ class _VendorDetailScreenState extends ConsumerState<VendorDetailScreen> {
     );
   }
 
+  static String _memberSince(DateTime dt) {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return '${months[dt.month - 1]} ${dt.year}';
+  }
+
   Future<void> _loadSaved() async {
     final s = await ref.read(wishlistRepoProvider).isSaved(widget.vendor.id);
     if (mounted) setState(() => _saved = s);
+  }
+
+  Future<void> _loadBlocked() async {
+    final b = await ref.read(blockedVendorRepoProvider).isBlocked(widget.vendor.id);
+    if (mounted) setState(() => _blocked = b);
+  }
+
+  Future<void> _toggleBlock() async {
+    if (_blocked) {
+      await ref.read(blockedVendorRepoProvider).unblock(widget.vendor.id);
+      if (mounted) setState(() => _blocked = false);
+    } else {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Block Vendor?'),
+          content: Text(
+            'You won\'t see ${widget.vendor.name ?? "this vendor"} in searches or recommendations.',
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel')),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Block'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed == true) {
+        await ref.read(blockedVendorRepoProvider).block(widget.vendor.id);
+        if (mounted) setState(() => _blocked = true);
+      }
+    }
   }
 
   Future<void> _openChat() async {
@@ -240,6 +287,7 @@ class _VendorDetailScreenState extends ConsumerState<VendorDetailScreen> {
                 onSelected: (v) {
                   if (v == 'wishlist') _toggleWishlist();
                   if (v == 'report') _reportVendor();
+                  if (v == 'block') _toggleBlock();
                 },
                 itemBuilder: (_) => [
                   PopupMenuItem(
@@ -249,6 +297,20 @@ class _VendorDetailScreenState extends ConsumerState<VendorDetailScreen> {
                           color: _saved ? Colors.red : null, size: 18),
                       const SizedBox(width: 10),
                       Text(_saved ? 'Remove from Wishlist' : 'Save to Wishlist'),
+                    ]),
+                  ),
+                  PopupMenuItem(
+                    value: 'block',
+                    child: Row(children: [
+                      Icon(Icons.block_rounded,
+                          color: _blocked ? AppColors.slate : AppColors.danger,
+                          size: 18),
+                      const SizedBox(width: 10),
+                      Text(
+                        _blocked ? 'Unblock Vendor' : 'Block Vendor',
+                        style: TextStyle(
+                            color: _blocked ? null : AppColors.danger),
+                      ),
                     ]),
                   ),
                   const PopupMenuItem(
@@ -358,6 +420,62 @@ class _VendorDetailScreenState extends ConsumerState<VendorDetailScreen> {
 
                   const SizedBox(height: 20),
 
+                  // ── Trust Badges ───────────────────────────────────────
+                  if (vendor.badgeTop10 || vendor.earlyBirdDiscount > 0 ||
+                      vendor.responseRate >= 90) ...[
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        if (vendor.badgeTop10)
+                          _TrustBadge(
+                            icon: Icons.emoji_events_rounded,
+                            label: 'Top 10 in ${vendor.category}',
+                            color: AppColors.gold,
+                          ),
+                        if (vendor.earlyBirdDiscount > 0)
+                          _TrustBadge(
+                            icon: Icons.local_offer_rounded,
+                            label: '${vendor.earlyBirdDiscount}% Early Bird',
+                            color: AppColors.success,
+                          ),
+                        if (vendor.responseRate >= 90)
+                          _TrustBadge(
+                            icon: Icons.flash_on_rounded,
+                            label: 'Responds fast · ${vendor.responseRate}%',
+                            color: AppColors.info,
+                          ),
+                      ],
+                    ).animate().fadeIn(delay: 88.ms),
+                    const SizedBox(height: 12),
+                  ],
+
+                  // ── Not Accepting Banner ───────────────────────────────
+                  if (!vendor.isAcceptingBookings) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.warning.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                            color: AppColors.warning.withValues(alpha: 0.4)),
+                      ),
+                      child: const Row(children: [
+                        Icon(Icons.do_not_disturb_on_rounded,
+                            color: AppColors.warning, size: 18),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Currently not accepting new bookings. You can still message them.',
+                            style: TextStyle(
+                                color: AppColors.warning, fontSize: 13),
+                          ),
+                        ),
+                      ]),
+                    ).animate().fadeIn(delay: 89.ms),
+                    const SizedBox(height: 12),
+                  ],
+
                   // ── Fully Booked Banner ────────────────────────────────
                   if (vendor.fullyBooked) ...[
                     Container(
@@ -385,32 +503,33 @@ class _VendorDetailScreenState extends ConsumerState<VendorDetailScreen> {
                   ],
 
                   // ── Stats Row ──────────────────────────────────────────
-                  if (vendor.yearsExperience > 0 ||
-                      vendor.eventsCount > 0 ||
-                      vendor.profileViews > 0) ...[
-                    Row(children: [
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
                       if (vendor.yearsExperience > 0)
                         _StatChip(
                           icon: Icons.workspace_premium_outlined,
-                          label: '${vendor.yearsExperience}+ yrs',
+                          label: '${vendor.yearsExperience}+ yrs exp',
                         ),
-                      if (vendor.eventsCount > 0) ...[
-                        const SizedBox(width: 8),
+                      if (vendor.eventsCount > 0)
                         _StatChip(
                           icon: Icons.celebration_outlined,
                           label: '${vendor.eventsCount} events',
                         ),
-                      ],
-                      if (vendor.profileViews > 0) ...[
-                        const SizedBox(width: 8),
+                      if (vendor.profileViews > 0)
                         _StatChip(
                           icon: Icons.visibility_outlined,
                           label: '${vendor.profileViews} views',
                         ),
-                      ],
-                    ]).animate().fadeIn(delay: 95.ms),
-                    const SizedBox(height: 16),
-                  ],
+                      if (vendor.createdAt != null)
+                        _StatChip(
+                          icon: Icons.calendar_today_outlined,
+                          label: 'Since ${_memberSince(vendor.createdAt!)}',
+                        ),
+                    ],
+                  ).animate().fadeIn(delay: 95.ms),
+                  const SizedBox(height: 16),
 
                   // ── About ──────────────────────────────────────────────
                   _SectionHeader(
@@ -586,6 +705,16 @@ class _VendorDetailScreenState extends ConsumerState<VendorDetailScreen> {
                     _PortfolioGrid(urls: vendor.portfolioUrls),
                   ],
 
+                  // ── Video Reels ────────────────────────────────────────
+                  if (vendor.videoUrls.isNotEmpty) ...[
+                    const SizedBox(height: 24),
+                    _SectionHeader(
+                        title: 'Video Reels',
+                        icon: Icons.play_circle_outline_rounded),
+                    const SizedBox(height: 10),
+                    _VideoReelsList(urls: vendor.videoUrls),
+                  ],
+
                   // ── Availability ───────────────────────────────────────
                   const SizedBox(height: 24),
                   _SectionHeader(
@@ -600,9 +729,50 @@ class _VendorDetailScreenState extends ConsumerState<VendorDetailScreen> {
 
                   // ── Reviews ────────────────────────────────────────────
                   const SizedBox(height: 24),
-                  _SectionHeader(
-                      title: 'Reviews',
-                      icon: Icons.rate_review_outlined),
+                  // Star breakdown chart (computed from review data)
+                  reviews.maybeWhen(
+                    data: (list) => list.length >= 3
+                        ? Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: _StarBreakdownChart(reviews: list),
+                          )
+                        : const SizedBox.shrink(),
+                    orElse: () => const SizedBox.shrink(),
+                  ),
+                  Row(children: [
+                    const Icon(Icons.rate_review_outlined,
+                        color: AppColors.violet, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text('Reviews',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w700)),
+                    ),
+                    PopupMenuButton<_ReviewSort>(
+                      initialValue: _reviewSort,
+                      onSelected: (v) => setState(() => _reviewSort = v),
+                      child: Chip(
+                        avatar: const Icon(Icons.sort_rounded, size: 14),
+                        label: Text(
+                          _reviewSort == _ReviewSort.newest
+                              ? 'Newest'
+                              : 'Top Rated',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(
+                            value: _ReviewSort.newest,
+                            child: Text('Newest')),
+                        PopupMenuItem(
+                            value: _ReviewSort.topRated,
+                            child: Text('Top Rated')),
+                      ],
+                    ),
+                  ]),
                   const SizedBox(height: 8),
                   reviews.when(
                     loading: () => const Padding(
@@ -610,23 +780,30 @@ class _VendorDetailScreenState extends ConsumerState<VendorDetailScreen> {
                       child: Center(child: CircularProgressIndicator()),
                     ),
                     error: (e, _) => Text('Error: $e'),
-                    data: (list) => list.isEmpty
-                        ? Padding(
-                            padding: const EdgeInsets.all(8),
-                            child: Text('No reviews yet',
-                                style: TextStyle(color: AppColors.slate)),
-                          )
-                        : Column(
-                            children: list
-                                .asMap()
-                                .entries
-                                .map((e) => _ReviewCard(review: e.value)
-                                    .animate()
-                                    .fadeIn(
-                                        delay: Duration(
-                                            milliseconds: e.key * 60)))
-                                .toList(),
-                          ),
+                    data: (list) {
+                      if (list.isEmpty) {
+                        return Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Text('No reviews yet',
+                              style: TextStyle(color: AppColors.slate)),
+                        );
+                      }
+                      final sorted = List.of(list);
+                      if (_reviewSort == _ReviewSort.topRated) {
+                        sorted.sort((a, b) => b.stars.compareTo(a.stars));
+                      }
+                      return Column(
+                        children: sorted
+                            .asMap()
+                            .entries
+                            .map((e) => _ReviewCard(review: e.value)
+                                .animate()
+                                .fadeIn(
+                                    delay: Duration(
+                                        milliseconds: e.key * 60)))
+                            .toList(),
+                      );
+                    },
                   ),
 
                   const SizedBox(height: 100),
@@ -994,11 +1171,12 @@ class _PortfolioGrid extends StatelessWidget {
   final List<String> urls;
 
   void _openLightbox(BuildContext context, int initialIndex) {
-    Navigator.of(context).push(PageRouteBuilder(
-      opaque: false,
-      barrierColor: Colors.black87,
-      pageBuilder: (ctx, a, b) =>
-          _LightboxView(urls: urls, initialIndex: initialIndex),
+    Navigator.of(context).push(MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) => FullscreenGalleryScreen(
+        urls: urls,
+        initialIndex: initialIndex,
+      ),
     ));
   }
 
@@ -1034,95 +1212,6 @@ class _PortfolioGrid extends StatelessWidget {
   }
 }
 
-class _LightboxView extends StatefulWidget {
-  const _LightboxView({required this.urls, required this.initialIndex});
-  final List<String> urls;
-  final int initialIndex;
-
-  @override
-  State<_LightboxView> createState() => _LightboxViewState();
-}
-
-class _LightboxViewState extends State<_LightboxView> {
-  late final PageController _controller;
-  late int _current;
-
-  @override
-  void initState() {
-    super.initState();
-    _current = widget.initialIndex;
-    _controller = PageController(initialPage: widget.initialIndex);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => Navigator.of(context).pop(),
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: Stack(
-          children: [
-            PageView.builder(
-              controller: _controller,
-              itemCount: widget.urls.length,
-              onPageChanged: (i) => setState(() => _current = i),
-              itemBuilder: (_, i) => Center(
-                child: InteractiveViewer(
-                  child: CachedNetworkImage(
-                    imageUrl: widget.urls[i],
-                    fit: BoxFit.contain,
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              top: MediaQuery.of(context).padding.top + 8,
-              right: 16,
-              child: GestureDetector(
-                onTap: () => Navigator.of(context).pop(),
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: const BoxDecoration(
-                    color: Colors.black54,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.close_rounded,
-                      color: Colors.white, size: 20),
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: MediaQuery.of(context).padding.bottom + 16,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.black54,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '${_current + 1} / ${widget.urls.length}',
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 13),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 // ── Availability Calendar ─────────────────────────────────────────────────────
 
@@ -1207,14 +1296,73 @@ class _MiniAvailabilityCalendar extends StatelessWidget {
   }
 }
 
-// ── Review Card ───────────────────────────────────────────────────────────────
+// ── Trust Badge ───────────────────────────────────────────────────────────────
 
-class _ReviewCard extends StatelessWidget {
+class _TrustBadge extends StatelessWidget {
+  const _TrustBadge({required this.icon, required this.label, required this.color});
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 13, color: color),
+        const SizedBox(width: 5),
+        Text(label,
+            style: TextStyle(
+                fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+      ]),
+    );
+  }
+}
+
+// ── Review Card with Helpful Votes ────────────────────────────────────────────
+
+class _ReviewCard extends ConsumerStatefulWidget {
   const _ReviewCard({required this.review});
   final Review review;
 
   @override
+  ConsumerState<_ReviewCard> createState() => _ReviewCardState();
+}
+
+class _ReviewCardState extends ConsumerState<_ReviewCard> {
+  bool? _myVote; // true=helpful, false=not helpful, null=no vote
+  int _helpfulCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _helpfulCount = (widget.review as dynamic).helpfulCount ?? 0;
+  }
+
+  Future<void> _vote(bool helpful) async {
+    try {
+      if (_myVote == helpful) {
+        await ref.read(reviewVoteRepoProvider).removeVote(widget.review.id);
+        setState(() { _myVote = null; if (helpful) _helpfulCount--; });
+      } else {
+        await ref.read(reviewVoteRepoProvider).vote(widget.review.id, helpful);
+        setState(() {
+          if (_myVote == true && !helpful) _helpfulCount--;
+          if (helpful && _myVote != true) _helpfulCount++;
+          _myVote = helpful;
+        });
+      }
+    } catch (_) {}
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final review = widget.review;
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: Padding(
@@ -1224,50 +1372,313 @@ class _ReviewCard extends StatelessWidget {
           children: [
             Row(children: [
               Container(
-                width: 36,
-                height: 36,
+                width: 36, height: 36,
                 decoration: const BoxDecoration(
-                  gradient: AppColors.brandGradient,
-                  shape: BoxShape.circle,
-                ),
+                    gradient: AppColors.brandGradient, shape: BoxShape.circle),
                 alignment: Alignment.center,
                 child: Text(
                   (review.clientName?.isNotEmpty == true)
-                      ? review.clientName![0].toUpperCase()
-                      : 'U',
+                      ? review.clientName![0].toUpperCase() : 'U',
                   style: const TextStyle(
                       color: Colors.white, fontWeight: FontWeight.w700),
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(review.clientName ?? 'User',
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(review.clientName ?? 'User',
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                    Text(Fmt.date(review.createdAt),
+                        style: const TextStyle(fontSize: 11, color: AppColors.slate)),
+                  ],
+                ),
+              ),
+              Row(mainAxisSize: MainAxisSize.min,
+                children: List.generate(5, (i) => Icon(
+                  i < review.stars ? Icons.star : Icons.star_border,
+                  size: 14, color: AppColors.gold,
+                )),
+              ),
+            ]),
+            if (review.comment != null && review.comment!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(review.comment!, style: const TextStyle(height: 1.5)),
+            ],
+            const SizedBox(height: 10),
+            Row(children: [
+              const Text('Helpful?',
+                  style: TextStyle(fontSize: 11, color: AppColors.slate)),
+              const SizedBox(width: 8),
+              _VoteChip(
+                icon: Icons.thumb_up_outlined,
+                label: '$_helpfulCount',
+                active: _myVote == true,
+                onTap: () => _vote(true),
+              ),
+              const SizedBox(width: 6),
+              _VoteChip(
+                icon: Icons.thumb_down_outlined,
+                label: '',
+                active: _myVote == false,
+                onTap: () => _vote(false),
+              ),
+            ]),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _VoteChip extends StatelessWidget {
+  const _VoteChip({required this.icon, required this.label,
+      required this.active, required this.onTap});
+  final IconData icon;
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: active
+              ? AppColors.violet.withValues(alpha: 0.12)
+              : context.softSurface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+              color: active ? AppColors.violet : Colors.transparent),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon,
+              size: 13,
+              color: active ? AppColors.violet : AppColors.slate),
+          if (label.isNotEmpty) ...[
+            const SizedBox(width: 4),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 11,
+                    color: active ? AppColors.violet : AppColors.slate)),
+          ],
+        ]),
+      ),
+    );
+  }
+}
+
+// ── Video Reels List ──────────────────────────────────────────────────────────
+
+class _VideoReelsList extends StatelessWidget {
+  const _VideoReelsList({required this.urls});
+  final List<String> urls;
+
+  bool _isYouTube(String url) =>
+      url.contains('youtube.com') || url.contains('youtu.be');
+
+  String _youtubeThumbnail(String url) {
+    final regExp = RegExp(
+        r'(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})');
+    final match = regExp.firstMatch(url);
+    final id = match?.group(1);
+    return id != null
+        ? 'https://img.youtube.com/vi/$id/mqdefault.jpg'
+        : '';
+  }
+
+  Future<void> _open(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri != null && await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 120,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: urls.length,
+        separatorBuilder: (context, i) => const SizedBox(width: 10),
+        itemBuilder: (_, i) {
+          final url = urls[i];
+          final thumb = _isYouTube(url) ? _youtubeThumbnail(url) : '';
+          return GestureDetector(
+            onTap: () => _open(url),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Stack(
+                children: [
+                  // Thumbnail or placeholder
+                  SizedBox(
+                    width: 180,
+                    height: 120,
+                    child: thumb.isNotEmpty
+                        ? Image.network(thumb, fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => _placeholder(context))
+                        : _placeholder(context),
+                  ),
+                  // Play overlay
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.35),
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.play_circle_filled_rounded,
+                            color: Colors.white, size: 42),
+                      ),
+                    ),
+                  ),
+                  // YouTube badge
+                  if (_isYouTube(url))
+                    Positioned(
+                      bottom: 6,
+                      right: 6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF0000),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text('YouTube',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _placeholder(BuildContext context) => Container(
+        width: 180,
+        height: 120,
+        color: AppColors.violetDeep.withValues(alpha: 0.15),
+        child: const Icon(Icons.videocam_rounded,
+            color: AppColors.violet, size: 36),
+      );
+}
+
+// ── Star Breakdown Chart ──────────────────────────────────────────────────────
+
+class _StarBreakdownChart extends StatelessWidget {
+  const _StarBreakdownChart({required this.reviews});
+  final List<Review> reviews;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = reviews.length;
+    final counts = List.generate(
+        5, (i) => reviews.where((r) => r.stars == 5 - i).length);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: context.softSurface,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          // Big average
+          Column(
+            children: [
+              Text(
+                reviews.isEmpty
+                    ? '—'
+                    : (reviews.map((r) => r.stars).reduce((a, b) => a + b) /
+                            reviews.length)
+                        .toStringAsFixed(1),
+                style: const TextStyle(
+                    fontSize: 36,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.charcoal),
               ),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: List.generate(
                   5,
-                  (i) => Icon(
-                    i < review.stars ? Icons.star : Icons.star_border,
-                    size: 14,
-                    color: AppColors.gold,
-                  ),
+                  (i) => Icon(Icons.star_rounded,
+                      size: 12,
+                      color: i < (reviews.isEmpty
+                              ? 0
+                              : (reviews
+                                          .map((r) => r.stars)
+                                          .reduce((a, b) => a + b) /
+                                      reviews.length)
+                                  .round())
+                          ? AppColors.gold
+                          : AppColors.violetMid),
                 ),
               ),
-            ]),
-            if (review.comment != null &&
-                review.comment!.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(review.comment!,
-                  style: const TextStyle(height: 1.5)),
+              const SizedBox(height: 4),
+              Text('$total ${total == 1 ? 'review' : 'reviews'}',
+                  style: const TextStyle(
+                      fontSize: 11, color: AppColors.slate)),
             ],
-            const SizedBox(height: 4),
-            Text(Fmt.date(review.createdAt),
-                style: const TextStyle(
-                    fontSize: 11, color: AppColors.slate)),
-          ],
-        ),
+          ),
+          const SizedBox(width: 16),
+          // Bars
+          Expanded(
+            child: Column(
+              children: List.generate(5, (i) {
+                final star = 5 - i;
+                final count = counts[i];
+                final pct = total == 0 ? 0.0 : count / total;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(children: [
+                    Text('$star',
+                        style: const TextStyle(
+                            fontSize: 11, color: AppColors.slate)),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.star_rounded,
+                        size: 10, color: AppColors.gold),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: pct,
+                          minHeight: 8,
+                          backgroundColor:
+                              AppColors.violetMid.withValues(alpha: 0.25),
+                          valueColor: AlwaysStoppedAnimation(
+                            pct > 0.6
+                                ? AppColors.success
+                                : pct > 0.3
+                                    ? AppColors.gold
+                                    : AppColors.danger,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    SizedBox(
+                      width: 22,
+                      child: Text('$count',
+                          style: const TextStyle(
+                              fontSize: 11, color: AppColors.slate)),
+                    ),
+                  ]),
+                );
+              }),
+            ),
+          ),
+        ],
       ),
     );
   }

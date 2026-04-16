@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/data/content_repositories.dart';
 import '../../core/data/repositories.dart';
+
 import '../../core/models/models.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/ui/widgets.dart';
@@ -20,6 +21,9 @@ final _filterMinRatingProvider = StateProvider<double>((_) => 0);
 final _filterMinPriceProvider = StateProvider<double>((_) => 0);
 final _filterMaxPriceProvider = StateProvider<double>((_) => 0);
 final _filterVerifiedOnlyProvider = StateProvider<bool>((_) => false);
+final _filterHideFullyBookedProvider = StateProvider<bool>((_) => false);
+final _filterLanguageProvider = StateProvider<String?>((_) => null);
+final _filterDateProvider = StateProvider<DateTime?>((_) => null);
 final _sortProvider = StateProvider<_SortOption>((_) => _SortOption.topRated);
 
 const _eventTypes = [
@@ -35,18 +39,30 @@ final _searchResultsProvider = FutureProvider<List<Vendor>>((ref) async {
   final minPrice = ref.watch(_filterMinPriceProvider);
   final maxPrice = ref.watch(_filterMaxPriceProvider);
   final verifiedOnly = ref.watch(_filterVerifiedOnlyProvider);
+  final hideFullyBooked = ref.watch(_filterHideFullyBookedProvider);
+  final language = ref.watch(_filterLanguageProvider);
+  final date = ref.watch(_filterDateProvider);
   final sort = ref.watch(_sortProvider);
   var list = await ref
       .watch(vendorRepoProvider)
       .list(category: cat, city: city, query: query);
-  // eventType filter is UI-only display; Vendor model has no eventTypes field
   list = list.where((v) => v.ratingAvg >= minRating).toList();
   if (verifiedOnly) list = list.where((v) => v.isVerified).toList();
+  if (hideFullyBooked) list = list.where((v) => !v.fullyBooked).toList();
+  if (language != null) {
+    list = list.where((v) => v.languages.contains(language)).toList();
+  }
   if (minPrice > 0) {
     list = list.where((v) => (v.basePrice ?? 0) >= minPrice).toList();
   }
   if (maxPrice > 0) {
     list = list.where((v) => (v.basePrice ?? 0) <= maxPrice).toList();
+  }
+  if (date != null) {
+    final blockedIds = await ref
+        .watch(availabilityRepoProvider)
+        .blockedVendorIdsOnDate(date);
+    list = list.where((v) => !blockedIds.contains(v.id)).toList();
   }
   switch (sort) {
     case _SortOption.topRated:
@@ -78,10 +94,14 @@ class SearchScreen extends ConsumerWidget {
     final minPrice = ref.watch(_filterMinPriceProvider);
     final maxPrice = ref.watch(_filterMaxPriceProvider);
     final verifiedOnly = ref.watch(_filterVerifiedOnlyProvider);
+    final filterDate = ref.watch(_filterDateProvider);
     final sort = ref.watch(_sortProvider);
 
+    final hideFullyBooked = ref.watch(_filterHideFullyBookedProvider);
+    final language = ref.watch(_filterLanguageProvider);
     final hasFilters = cat != null || city != null || eventType != null ||
-        minRating > 0 || minPrice > 0 || maxPrice > 0 || verifiedOnly;
+        minRating > 0 || minPrice > 0 || maxPrice > 0 || verifiedOnly ||
+        filterDate != null || hideFullyBooked || language != null;
 
     return Scaffold(
       appBar: AppBar(
@@ -173,6 +193,16 @@ class SearchScreen extends ConsumerWidget {
                       onDeleted: () => ref
                           .read(_filterVerifiedOnlyProvider.notifier)
                           .state = false,
+                    ),
+                  if (filterDate != null)
+                    Chip(
+                      avatar: const Icon(Icons.event_available_rounded,
+                          size: 14),
+                      label: Text(
+                          '${filterDate.day}/${filterDate.month}/${filterDate.year}'),
+                      onDeleted: () => ref
+                          .read(_filterDateProvider.notifier)
+                          .state = null,
                     ),
                 ],
               ),
@@ -349,6 +379,67 @@ class SearchScreen extends ConsumerWidget {
                     .read(_filterVerifiedOnlyProvider.notifier)
                     .state = v,
               ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Hide fully booked vendors',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: const Text('Only show vendors accepting bookings'),
+                value: ref.watch(_filterHideFullyBookedProvider),
+                activeThumbColor: AppColors.violet,
+                onChanged: (v) => ref
+                    .read(_filterHideFullyBookedProvider.notifier)
+                    .state = v,
+              ),
+              const SizedBox(height: 8),
+              const Text('Language',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: ['Hindi', 'English', 'Gujarati', 'Marathi', 'Punjabi', 'Urdu']
+                    .map((lang) {
+                  final sel = ref.watch(_filterLanguageProvider) == lang;
+                  return FilterChip(
+                    label: Text(lang),
+                    selected: sel,
+                    selectedColor: AppColors.violet.withValues(alpha: 0.2),
+                    checkmarkColor: AppColors.violet,
+                    onSelected: (v) => ref
+                        .read(_filterLanguageProvider.notifier)
+                        .state = v ? lang : null,
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 16),
+              const Text('Available on Date',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Builder(builder: (ctx) {
+                final selDate = ref.watch(_filterDateProvider);
+                return OutlinedButton.icon(
+                  icon: const Icon(Icons.calendar_today_rounded, size: 16),
+                  label: Text(selDate == null
+                      ? 'Pick a date'
+                      : '${selDate.day}/${selDate.month}/${selDate.year}'),
+                  onPressed: () async {
+                    final picked = await showDatePicker(
+                      context: ctx,
+                      initialDate: selDate ?? DateTime.now(),
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                    );
+                    if (picked != null) {
+                      ref.read(_filterDateProvider.notifier).state = picked;
+                    }
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: selDate != null ? AppColors.violet : null,
+                    side: selDate != null
+                        ? const BorderSide(color: AppColors.violet)
+                        : null,
+                  ),
+                );
+              }),
               const SizedBox(height: 8),
               Row(children: [
                 Expanded(
@@ -361,6 +452,9 @@ class SearchScreen extends ConsumerWidget {
                       ref.read(_filterMinPriceProvider.notifier).state = 0;
                       ref.read(_filterMaxPriceProvider.notifier).state = 0;
                       ref.read(_filterVerifiedOnlyProvider.notifier).state = false;
+                      ref.read(_filterHideFullyBookedProvider.notifier).state = false;
+                      ref.read(_filterLanguageProvider.notifier).state = null;
+                      ref.read(_filterDateProvider.notifier).state = null;
                     },
                     child: const Text('Clear'),
                   ),

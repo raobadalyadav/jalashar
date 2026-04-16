@@ -82,19 +82,22 @@ DECLARE
 BEGIN
 
   -- Insert into auth.users (seed users, bypassing email confirmation)
-  INSERT INTO auth.users (id, email, role, aud, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data)
-  VALUES
-    (uid1,  'rahul.sharma@demo.in',     'authenticated', 'authenticated', crypt('Demo1234!', gen_salt('bf')), now(), now(), now(), '{"role":"vendor"}'::jsonb, '{"name":"Rahul Sharma"}'::jsonb),
-    (uid2,  'priya.mehta@demo.in',      'authenticated', 'authenticated', crypt('Demo1234!', gen_salt('bf')), now(), now(), now(), '{"role":"vendor"}'::jsonb, '{"name":"Priya Mehta"}'::jsonb),
-    (uid3,  'arjun.patel@demo.in',      'authenticated', 'authenticated', crypt('Demo1234!', gen_salt('bf')), now(), now(), now(), '{"role":"vendor"}'::jsonb, '{"name":"Arjun Patel"}'::jsonb),
-    (uid4,  'sunita.desai@demo.in',     'authenticated', 'authenticated', crypt('Demo1234!', gen_salt('bf')), now(), now(), now(), '{"role":"vendor"}'::jsonb, '{"name":"Sunita Desai"}'::jsonb),
-    (uid5,  'vikram.joshi@demo.in',     'authenticated', 'authenticated', crypt('Demo1234!', gen_salt('bf')), now(), now(), now(), '{"role":"vendor"}'::jsonb, '{"name":"Vikram Joshi"}'::jsonb),
-    (uid6,  'anita.kapoor@demo.in',     'authenticated', 'authenticated', crypt('Demo1234!', gen_salt('bf')), now(), now(), now(), '{"role":"vendor"}'::jsonb, '{"name":"Anita Kapoor"}'::jsonb),
-    (uid7,  'deepak.verma@demo.in',     'authenticated', 'authenticated', crypt('Demo1234!', gen_salt('bf')), now(), now(), now(), '{"role":"vendor"}'::jsonb, '{"name":"Deepak Verma"}'::jsonb),
-    (uid8,  'kavita.singh@demo.in',     'authenticated', 'authenticated', crypt('Demo1234!', gen_salt('bf')), now(), now(), now(), '{"role":"vendor"}'::jsonb, '{"name":"Kavita Singh"}'::jsonb),
-    (uid9,  'rohit.gupta@demo.in',      'authenticated', 'authenticated', crypt('Demo1234!', gen_salt('bf')), now(), now(), now(), '{"role":"vendor"}'::jsonb, '{"name":"Rohit Gupta"}'::jsonb),
-    (uid10, 'meena.agarwal@demo.in',    'authenticated', 'authenticated', crypt('Demo1234!', gen_salt('bf')), now(), now(), now(), '{"role":"vendor"}'::jsonb, '{"name":"Meena Agarwal"}'::jsonb)
-  ON CONFLICT (id) DO NOTHING;
+  BEGIN
+    INSERT INTO auth.users (id, email, role, aud, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data)
+    VALUES
+      (uid1,  'rahul.sharma@demo.in',     'authenticated', 'authenticated', extensions.crypt('Demo1234!', extensions.gen_salt('bf')), now(), now(), now(), '{"role":"vendor"}'::jsonb, '{"name":"Rahul Sharma"}'::jsonb),
+      (uid2,  'priya.mehta@demo.in',      'authenticated', 'authenticated', extensions.crypt('Demo1234!', extensions.gen_salt('bf')), now(), now(), now(), '{"role":"vendor"}'::jsonb, '{"name":"Priya Mehta"}'::jsonb),
+      (uid3,  'arjun.patel@demo.in',      'authenticated', 'authenticated', extensions.crypt('Demo1234!', extensions.gen_salt('bf')), now(), now(), now(), '{"role":"vendor"}'::jsonb, '{"name":"Arjun Patel"}'::jsonb),
+      (uid4,  'sunita.desai@demo.in',     'authenticated', 'authenticated', extensions.crypt('Demo1234!', extensions.gen_salt('bf')), now(), now(), now(), '{"role":"vendor"}'::jsonb, '{"name":"Sunita Desai"}'::jsonb),
+      (uid5,  'vikram.joshi@demo.in',     'authenticated', 'authenticated', extensions.crypt('Demo1234!', extensions.gen_salt('bf')), now(), now(), now(), '{"role":"vendor"}'::jsonb, '{"name":"Vikram Joshi"}'::jsonb),
+      (uid6,  'anita.kapoor@demo.in',     'authenticated', 'authenticated', extensions.crypt('Demo1234!', extensions.gen_salt('bf')), now(), now(), now(), '{"role":"vendor"}'::jsonb, '{"name":"Anita Kapoor"}'::jsonb),
+      (uid7,  'deepak.verma@demo.in',     'authenticated', 'authenticated', extensions.crypt('Demo1234!', extensions.gen_salt('bf')), now(), now(), now(), '{"role":"vendor"}'::jsonb, '{"name":"Deepak Verma"}'::jsonb),
+      (uid8,  'kavita.singh@demo.in',     'authenticated', 'authenticated', extensions.crypt('Demo1234!', extensions.gen_salt('bf')), now(), now(), now(), '{"role":"vendor"}'::jsonb, '{"name":"Kavita Singh"}'::jsonb),
+      (uid9,  'rohit.gupta@demo.in',      'authenticated', 'authenticated', extensions.crypt('Demo1234!', extensions.gen_salt('bf')), now(), now(), now(), '{"role":"vendor"}'::jsonb, '{"name":"Rohit Gupta"}'::jsonb),
+      (uid10, 'meena.agarwal@demo.in',    'authenticated', 'authenticated', extensions.crypt('Demo1234!', extensions.gen_salt('bf')), now(), now(), now(), '{"role":"vendor"}'::jsonb, '{"name":"Meena Agarwal"}'::jsonb);
+  EXCEPTION WHEN unique_violation THEN
+    NULL;
+  END;
 
   -- Insert into public.users
   INSERT INTO public.users (id, email, name, role, avatar_url) VALUES
@@ -108,7 +111,14 @@ BEGIN
     (uid8,  'kavita.singh@demo.in',  'Kavita Singh',  'vendor', 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=150&q=80'),
     (uid9,  'rohit.gupta@demo.in',   'Rohit Gupta',   'vendor', 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&q=80'),
     (uid10, 'meena.agarwal@demo.in', 'Meena Agarwal', 'vendor', 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&q=80')
-  ON CONFLICT (id) DO NOTHING;
+  ON CONFLICT (id) DO UPDATE SET
+    role       = EXCLUDED.role,
+    name       = EXCLUDED.name,
+    avatar_url = EXCLUDED.avatar_url;
+
+  -- Clean up any previous seed run for idempotency
+  DELETE FROM public.vendors
+  WHERE user_id IN (uid1, uid2, uid3, uid4, uid5, uid6, uid7, uid8, uid9, uid10);
 
   -- Insert vendors
   INSERT INTO public.vendors (
@@ -239,8 +249,7 @@ BEGIN
       'https://images.unsplash.com/photo-1519741497674-611481863552?w=600&q=80'
     ],
     ARRAY['Jaipur','Udaipur','Delhi'],
-    '+919876543210', '+919876543210')
-  ON CONFLICT (user_id) DO NOTHING;
+    '+919876543210', '+919876543210');
 
 END $$;
 
