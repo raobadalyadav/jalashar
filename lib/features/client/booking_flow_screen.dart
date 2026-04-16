@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/data/content_repositories.dart';
-import '../../core/data/extra_repositories.dart';
 import '../../core/data/repositories.dart';
-import '../../core/models/extra_models.dart';
 import '../../core/models/models.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
-
 
 class BookingFlowScreen extends ConsumerStatefulWidget {
   const BookingFlowScreen({super.key, this.vendor, this.service});
@@ -23,378 +21,156 @@ class BookingFlowScreen extends ConsumerStatefulWidget {
 class _BookingFlowScreenState extends ConsumerState<BookingFlowScreen> {
   int _step = 0;
   DateTime? _date;
-  final _guests = TextEditingController(text: '100');
+  String? _eventType;
+  final _guests = TextEditingController(text: '50');
   final _venue = TextEditingController();
   final _notes = TextEditingController();
-  final _couponCtrl = TextEditingController();
   bool _submitting = false;
 
-  Coupon? _appliedCoupon;
-  double _couponDiscount = 0;
-  String? _couponError;
-  bool _checkingCoupon = false;
+  static const _eventTypes = [
+    'Wedding', 'Birthday', 'Corporate', 'Engagement',
+    'Anniversary', 'Festival', 'Other',
+  ];
 
-  double get _baseTotal =>
-      widget.service?.basePrice ?? widget.vendor?.basePrice ?? 25000;
-  double get _total => (_baseTotal - _couponDiscount).clamp(0, double.infinity);
-
-  Future<void> _applyCoupon() async {
-    final code = _couponCtrl.text.trim();
-    if (code.isEmpty) return;
-    setState(() {
-      _checkingCoupon = true;
-      _couponError = null;
-    });
-    try {
-      final coupon = await ref.read(couponRepoProvider).byCode(code);
-      if (coupon == null) {
-        setState(() => _couponError = 'Invalid or expired coupon');
-        return;
-      }
-      final discount = coupon.applyTo(_baseTotal);
-      if (discount == 0) {
-        setState(() => _couponError =
-            'Minimum order ₹${coupon.minOrder.toStringAsFixed(0)} required');
-        return;
-      }
-      setState(() {
-        _appliedCoupon = coupon;
-        _couponDiscount = discount;
-      });
-    } catch (e) {
-      setState(() => _couponError = 'Error: $e');
-    } finally {
-      if (mounted) setState(() => _checkingCoupon = false);
-    }
+  @override
+  void dispose() {
+    _guests.dispose();
+    _venue.dispose();
+    _notes.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('New Booking')),
-      body: Stepper(
-        currentStep: _step,
-        onStepContinue: () async {
-          if (_step == 0 && _date == null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Please pick a date')));
-            return;
-          }
-          if (_step == 1 && _venue.text.isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Please enter venue')));
-            return;
-          }
-          if (_step == 3) {
-            await _submit();
-            return;
-          }
-          setState(() => _step++);
-        },
-        onStepCancel: _step == 0 ? null : () => setState(() => _step--),
-        controlsBuilder: (c, d) => Padding(
-          padding: const EdgeInsets.only(top: 16),
-          child: Row(children: [
-            FilledButton(
-              style: FilledButton.styleFrom(
-                minimumSize: const Size(140, 48),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-              onPressed: _submitting ? null : d.onStepContinue,
-              child: _submitting
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
-                  : Text(_step == 3 ? 'Pay & Confirm' : 'Next'),
-            ),
-            const SizedBox(width: 12),
-            if (d.onStepCancel != null)
-              TextButton(onPressed: d.onStepCancel, child: const Text('Back')),
-          ]),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: const Text('Book Event'),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(4),
+          child: LinearProgressIndicator(
+            value: (_step + 1) / 3,
+            backgroundColor: AppColors.violetMid,
+            valueColor: const AlwaysStoppedAnimation(AppColors.violet),
+          ),
         ),
-        steps: [
-          // ── Step 0: Date
-          Step(
-            title: const Text('Event Date'),
-            isActive: _step >= 0,
-            state: _step > 0 ? StepState.complete : StepState.indexed,
-            content: InkWell(
-              onTap: () async {
-                final picked = await showDatePicker(
-                  context: context,
-                  firstDate: DateTime.now().add(const Duration(days: 1)),
-                  lastDate: DateTime.now().add(const Duration(days: 730)),
-                  initialDate: DateTime.now().add(const Duration(days: 30)),
-                );
-                if (picked != null) setState(() => _date = picked);
-              },
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  border: Border.all(
-                      color: _date != null
-                          ? AppColors.saffron
-                          : Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(children: [
-                  Icon(Icons.calendar_month,
-                      color:
-                          _date != null ? AppColors.saffron : AppColors.slate),
-                  const SizedBox(width: 12),
-                  Text(
-                    _date == null ? 'Tap to pick event date' : Fmt.date(_date!),
-                    style: TextStyle(
-                      color:
-                          _date != null ? AppColors.deepMaroon : AppColors.slate,
-                      fontWeight: _date != null ? FontWeight.w600 : null,
-                      fontSize: 15,
-                    ),
+      ),
+      body: AnimatedSwitcher(
+        duration: 300.ms,
+        transitionBuilder: (child, anim) =>
+            FadeTransition(opacity: anim, child: child),
+        child: _buildStep(context),
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: Row(children: [
+            if (_step > 0)
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => setState(() => _step--),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 52),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
                   ),
-                ]),
+                  child: const Text('Back'),
+                ),
               ),
-            ),
-          ),
-
-          // ── Step 1: Details
-          Step(
-            title: const Text('Event Details'),
-            isActive: _step >= 1,
-            state: _step > 1 ? StepState.complete : StepState.indexed,
-            content: Column(
-              children: [
-                TextField(
-                  controller: _guests,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Guest count',
-                    prefixIcon: Icon(Icons.group),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _venue,
-                  decoration: const InputDecoration(
-                    labelText: 'Venue name / address',
-                    prefixIcon: Icon(Icons.location_on),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _notes,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Special requests (optional)',
-                    prefixIcon: Icon(Icons.notes),
-                    alignLabelWithHint: true,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // ── Step 2: Coupon + Summary
-          Step(
-            title: const Text('Review & Coupon'),
-            isActive: _step >= 2,
-            state: _step > 2 ? StepState.complete : StepState.indexed,
-            content: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Summary
-                Card(
-                  color: AppColors.ivory,
-                  elevation: 0,
+            if (_step > 0) const SizedBox(width: 12),
+            Expanded(
+              flex: 2,
+              child: FilledButton(
+                onPressed: _submitting ? null : _handleNext,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(0, 52),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.service?.name ??
-                              widget.vendor?.name ??
-                              'Package',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 10),
-                        _SummaryRow('Date',
-                            _date != null ? Fmt.date(_date!) : '—'),
-                        _SummaryRow('Guests', _guests.text),
-                        _SummaryRow('Venue',
-                            _venue.text.isEmpty ? '—' : _venue.text),
-                        const Divider(height: 20),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text('Base Price'),
-                            Text(Fmt.currency(_baseTotal)),
-                          ],
-                        ),
-                        if (_couponDiscount > 0) ...[
-                          const SizedBox(height: 4),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Coupon (${_appliedCoupon!.code})',
-                                style: const TextStyle(color: AppColors.success),
-                              ),
-                              Text(
-                                '− ${Fmt.currency(_couponDiscount)}',
-                                style:
-                                    const TextStyle(color: AppColors.success),
-                              ),
-                            ],
-                          ),
-                        ],
-                        const Divider(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text('Total',
-                                style: TextStyle(fontWeight: FontWeight.w700)),
-                            Text(
-                              Fmt.currency(_total),
-                              style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.deepMaroon),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '30% advance: ${Fmt.currency(_total * 0.3)}',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
-                  ),
                 ),
-
-                const SizedBox(height: 16),
-
-                // Coupon input
-                if (_appliedCoupon == null) ...[
-                  Text('Have a coupon?',
-                      style: Theme.of(context).textTheme.titleSmall),
-                  const SizedBox(height: 8),
-                  Row(children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _couponCtrl,
-                        textCapitalization: TextCapitalization.characters,
-                        decoration: InputDecoration(
-                          hintText: 'Enter coupon code',
-                          prefixIcon: const Icon(Icons.local_offer_outlined),
-                          errorText: _couponError,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    OutlinedButton(
-                      onPressed: _checkingCoupon ? null : _applyCoupon,
-                      child: _checkingCoupon
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Text('Apply'),
-                    ),
-                  ]),
-                ] else
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.success.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.success),
-                    ),
-                    child: Row(children: [
-                      const Icon(Icons.check_circle, color: AppColors.success),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(_appliedCoupon!.code,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.success)),
-                            if (_appliedCoupon!.description != null)
-                              Text(_appliedCoupon!.description!,
-                                  style:
-                                      Theme.of(context).textTheme.bodySmall),
-                          ],
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () => setState(() {
-                          _appliedCoupon = null;
-                          _couponDiscount = 0;
-                          _couponCtrl.clear();
-                        }),
-                        child: const Text('Remove'),
-                      ),
-                    ]),
-                  ),
-              ],
-            ),
-          ),
-
-          // ── Step 3: Payment
-          Step(
-            title: const Text('Payment'),
-            isActive: _step >= 3,
-            content: Column(
-              children: [
-                const ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.account_balance_wallet,
-                      color: AppColors.saffron, size: 32),
-                  title: Text('UPI / Cards / Net Banking',
-                      style: TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: Text('Powered by Razorpay · 256-bit SSL encrypted'),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: AppColors.ivory,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Amount due now'),
-                      Text(
-                        Fmt.currency(_total * 0.3),
+                child: _submitting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2.5, color: Colors.white))
+                    : Text(
+                        _step == 2 ? 'Confirm Booking' : 'Next',
                         style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 18,
-                            color: AppColors.deepMaroon),
+                            fontWeight: FontWeight.w700, fontSize: 15),
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                if (_submitting) const LinearProgressIndicator(),
-              ],
+              ),
             ),
-          ),
-        ],
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStep(BuildContext context) {
+    return switch (_step) {
+      0 => _StepDate(
+          key: const ValueKey(0),
+          selected: _date,
+          eventType: _eventType,
+          eventTypes: _eventTypes,
+          onDatePicked: (d) => setState(() => _date = d),
+          onEventType: (t) => setState(() => _eventType = t),
+        ),
+      1 => _StepDetails(
+          key: const ValueKey(1),
+          guestsCtrl: _guests,
+          venueCtrl: _venue,
+          notesCtrl: _notes,
+        ),
+      _ => _StepReview(
+          key: const ValueKey(2),
+          date: _date!,
+          eventType: _eventType,
+          guests: _guests.text,
+          venue: _venue.text,
+          notes: _notes.text,
+          vendor: widget.vendor,
+          service: widget.service,
+        ),
+    };
+  }
+
+  void _handleNext() async {
+    if (_step == 0) {
+      if (_date == null) {
+        _snack('Please pick an event date');
+        return;
+      }
+      setState(() => _step++);
+    } else if (_step == 1) {
+      if (_venue.text.trim().isEmpty) {
+        _snack('Please enter the venue');
+        return;
+      }
+      final guests = int.tryParse(_guests.text.trim()) ?? 0;
+      if (guests <= 0) {
+        _snack('Please enter a valid guest count');
+        return;
+      }
+      setState(() => _step++);
+    } else {
+      await _submit();
+    }
+  }
+
+  void _snack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.warning,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
 
   Future<void> _submit() async {
-    if (widget.service == null && widget.vendor == null) return;
     setState(() => _submitting = true);
     try {
       final booking = await ref.read(bookingRepoProvider).create(
@@ -402,27 +178,10 @@ class _BookingFlowScreenState extends ConsumerState<BookingFlowScreen> {
             vendorId: widget.vendor?.id,
             eventDate: _date!,
             guestCount: int.tryParse(_guests.text) ?? 0,
-            venue: _venue.text,
-            notes: _notes.text,
-            totalAmount: _total,
+            venue: _venue.text.trim(),
+            notes: _notes.text.trim(),
+            totalAmount: 0,
           );
-
-      // Apply coupon if present
-      if (_appliedCoupon != null) {
-        await ref.read(couponRepoProvider).applyToBooking(
-              booking.id,
-              _appliedCoupon!.id,
-              _couponDiscount,
-            );
-      }
-
-      // Create Razorpay order (30% advance)
-      try {
-        await ref.read(paymentRepoProvider).createOrder(
-              bookingId: booking.id,
-              amount: _total * 0.3,
-            );
-      } catch (_) {}
 
       // Auto system message to vendor
       if (widget.vendor != null) {
@@ -430,57 +189,447 @@ class _BookingFlowScreenState extends ConsumerState<BookingFlowScreen> {
           await ref.read(messageRepoProvider).send(
                 booking.id,
                 widget.vendor!.userId,
-                '🎉 New booking received!\n'
-                'Event Date: ${Fmt.date(_date!)}\n'
-                'Venue: ${_venue.text}\n'
+                '🎉 New booking request!\n'
+                'Event: ${_eventType ?? 'Event'}\n'
+                'Date: ${Fmt.date(_date!)}\n'
+                'Venue: ${_venue.text.trim()}\n'
                 'Guests: ${_guests.text}\n'
-                'Total: ${Fmt.currency(_total)}\n\n'
-                'Please confirm availability and accept/decline from your dashboard.',
+                '${_notes.text.trim().isNotEmpty ? 'Notes: ${_notes.text.trim()}' : ''}\n\n'
+                'Please accept or decline from your dashboard.',
               );
         } catch (_) {}
       }
 
-      // Generate checklist from template if service type known
+      // Generate checklist
       try {
         await ref.read(checklistRepoProvider).generateFromTemplate(
               booking.id,
-              widget.service?.slug ?? 'wedding',
+              widget.service?.slug ?? _eventType?.toLowerCase() ?? 'wedding',
             );
       } catch (_) {}
 
       ref.invalidate(myBookingsProvider);
       if (mounted) context.go('/booking/confirm/${booking.id}');
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
-      }
+      if (mounted) _snack('Failed to book: ${e.toString().split('\n').first}');
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
   }
 }
 
-class _SummaryRow extends StatelessWidget {
-  const _SummaryRow(this.label, this.value);
+// ── Step 0: Date + Event Type ─────────────────────────────────────────────────
+
+class _StepDate extends StatelessWidget {
+  const _StepDate({
+    super.key,
+    required this.selected,
+    required this.eventType,
+    required this.eventTypes,
+    required this.onDatePicked,
+    required this.onEventType,
+  });
+  final DateTime? selected;
+  final String? eventType;
+  final List<String> eventTypes;
+  final ValueChanged<DateTime> onDatePicked;
+  final ValueChanged<String?> onEventType;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        Text('When is your event?',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w700))
+            .animate()
+            .fadeIn()
+            .slideY(begin: -0.2),
+        const SizedBox(height: 6),
+        Text('Pick the date and event type',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: AppColors.slate))
+            .animate()
+            .fadeIn(delay: 100.ms),
+        const SizedBox(height: 28),
+
+        // Date picker card
+        InkWell(
+          onTap: () async {
+            final picked = await showDatePicker(
+              context: context,
+              firstDate: DateTime.now().add(const Duration(days: 1)),
+              lastDate: DateTime.now().add(const Duration(days: 730)),
+              initialDate: selected ??
+                  DateTime.now().add(const Duration(days: 30)),
+              builder: (_, child) => Theme(
+                data: Theme.of(context).copyWith(
+                  colorScheme: Theme.of(context)
+                      .colorScheme
+                      .copyWith(primary: AppColors.violet),
+                ),
+                child: child!,
+              ),
+            );
+            if (picked != null) onDatePicked(picked);
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: selected != null
+                  ? const LinearGradient(
+                      colors: [AppColors.violet, Color(0xFF9333EA)])
+                  : null,
+              border: selected == null
+                  ? Border.all(color: AppColors.violetMid, width: 1.5)
+                  : null,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: selected != null
+                      ? Colors.white.withValues(alpha: 0.2)
+                      : AppColors.violetSoft,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.calendar_today_rounded,
+                    color: selected != null ? Colors.white : AppColors.violet,
+                    size: 22),
+              ),
+              const SizedBox(width: 14),
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(
+                  selected == null ? 'Choose Event Date' : Fmt.date(selected!),
+                  style: TextStyle(
+                    color: selected != null ? Colors.white : AppColors.charcoal,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
+                Text(
+                  selected == null
+                      ? 'Tap to open calendar'
+                      : 'Tap to change',
+                  style: TextStyle(
+                    color: selected != null
+                        ? Colors.white.withValues(alpha: 0.8)
+                        : AppColors.slate,
+                    fontSize: 12,
+                  ),
+                ),
+              ]),
+              const Spacer(),
+              Icon(Icons.chevron_right_rounded,
+                  color:
+                      selected != null ? Colors.white : AppColors.slate),
+            ]),
+          ),
+        ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.1),
+
+        const SizedBox(height: 28),
+        Text('Event type',
+            style: Theme.of(context)
+                .textTheme
+                .titleMedium
+                ?.copyWith(fontWeight: FontWeight.w700)),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: List.generate(
+            _StepDate._eventTypes.length,
+            (i) {
+              final t = _StepDate._eventTypes[i];
+              final sel = eventType == t;
+              return FilterChip(
+                label: Text(t),
+                selected: sel,
+                onSelected: (_) => onEventType(sel ? null : t),
+                selectedColor: AppColors.violet,
+                checkmarkColor: Colors.white,
+                labelStyle: TextStyle(
+                    color: sel ? Colors.white : null,
+                    fontWeight: sel ? FontWeight.w600 : null),
+              )
+                  .animate()
+                  .fadeIn(delay: Duration(milliseconds: 300 + i * 50));
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  static const List<String> _eventTypes = [
+    'Wedding', 'Birthday', 'Corporate', 'Engagement',
+    'Anniversary', 'Festival', 'Other',
+  ];
+}
+
+// ── Step 1: Details ───────────────────────────────────────────────────────────
+
+class _StepDetails extends StatelessWidget {
+  const _StepDetails({
+    super.key,
+    required this.guestsCtrl,
+    required this.venueCtrl,
+    required this.notesCtrl,
+  });
+  final TextEditingController guestsCtrl, venueCtrl, notesCtrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        Text('Event details',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w700))
+            .animate()
+            .fadeIn()
+            .slideY(begin: -0.2),
+        const SizedBox(height: 6),
+        Text('Tell us more about your event',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: AppColors.slate))
+            .animate()
+            .fadeIn(delay: 80.ms),
+        const SizedBox(height: 28),
+        _Field(
+          label: 'Number of guests',
+          hint: 'e.g. 200',
+          controller: guestsCtrl,
+          icon: Icons.group_rounded,
+          keyboardType: TextInputType.number,
+          delay: 150,
+        ),
+        const SizedBox(height: 16),
+        _Field(
+          label: 'Venue',
+          hint: 'Venue name or address',
+          controller: venueCtrl,
+          icon: Icons.location_on_rounded,
+          delay: 200,
+        ),
+        const SizedBox(height: 16),
+        _Field(
+          label: 'Special requests',
+          hint: 'Any special requirements, theme, etc.',
+          controller: notesCtrl,
+          icon: Icons.notes_rounded,
+          maxLines: 4,
+          delay: 250,
+        ),
+      ],
+    );
+  }
+}
+
+class _Field extends StatelessWidget {
+  const _Field({
+    required this.label,
+    required this.hint,
+    required this.controller,
+    required this.icon,
+    this.maxLines = 1,
+    this.keyboardType = TextInputType.text,
+    this.delay = 0,
+  });
+  final String label, hint;
+  final TextEditingController controller;
+  final IconData icon;
+  final int maxLines;
+  final TextInputType keyboardType;
+  final int delay;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: Theme.of(context)
+                .textTheme
+                .labelLarge
+                ?.copyWith(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          maxLines: maxLines,
+          keyboardType: keyboardType,
+          decoration: InputDecoration(
+            hintText: hint,
+            prefixIcon: Icon(icon, size: 20),
+          ),
+        ),
+      ],
+    ).animate().fadeIn(delay: Duration(milliseconds: delay)).slideY(begin: 0.1);
+  }
+}
+
+// ── Step 2: Review ────────────────────────────────────────────────────────────
+
+class _StepReview extends StatelessWidget {
+  const _StepReview({
+    super.key,
+    required this.date,
+    this.eventType,
+    required this.guests,
+    required this.venue,
+    required this.notes,
+    this.vendor,
+    this.service,
+  });
+  final DateTime date;
+  final String? eventType;
+  final String guests, venue, notes;
+  final Vendor? vendor;
+  final ServicePackage? service;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = service?.name ?? vendor?.name ?? 'Event';
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        Text('Review & confirm',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w700))
+            .animate()
+            .fadeIn()
+            .slideY(begin: -0.2),
+        const SizedBox(height: 6),
+        Text('Everything looks good?',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: AppColors.slate))
+            .animate()
+            .fadeIn(delay: 80.ms),
+        const SizedBox(height: 28),
+
+        // Free badge
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.success.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+          ),
+          child: Row(children: [
+            const Icon(Icons.verified_rounded, color: AppColors.success, size: 20),
+            const SizedBox(width: 10),
+            Text('100% Free Platform — No Payment Required',
+                style: const TextStyle(
+                    color: AppColors.success, fontWeight: FontWeight.w600,
+                    fontSize: 13)),
+          ]),
+        ).animate().fadeIn(delay: 100.ms),
+
+        const SizedBox(height: 20),
+
+        Card(
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: AppColors.violetMid),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Expanded(
+                    child: Text(name,
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleLarge
+                            ?.copyWith(fontWeight: FontWeight.w700)),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.violetSoft,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Text('Free',
+                        style: TextStyle(
+                            color: AppColors.violet,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12)),
+                  ),
+                ]),
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 12),
+                _ReviewRow(Icons.calendar_today_rounded, 'Date', Fmt.date(date)),
+                if (eventType != null)
+                  _ReviewRow(Icons.celebration_rounded, 'Event', eventType!),
+                _ReviewRow(Icons.group_rounded, 'Guests', guests),
+                _ReviewRow(Icons.location_on_rounded, 'Venue', venue),
+                if (notes.isNotEmpty)
+                  _ReviewRow(Icons.notes_rounded, 'Notes', notes),
+              ],
+            ),
+          ),
+        ).animate().fadeIn(delay: 150.ms).slideY(begin: 0.1),
+
+        const SizedBox(height: 20),
+
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+                colors: [AppColors.violetDeep, AppColors.violet]),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(children: [
+            const Icon(Icons.chat_bubble_rounded, color: Colors.white, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'After booking, you can chat directly with your vendor through the app.',
+                style: const TextStyle(
+                    color: Colors.white, fontSize: 13, height: 1.4),
+              ),
+            ),
+          ]),
+        ).animate().fadeIn(delay: 250.ms),
+      ],
+    );
+  }
+}
+
+class _ReviewRow extends StatelessWidget {
+  const _ReviewRow(this.icon, this.label, this.value);
+  final IconData icon;
   final String label, value;
+
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: AppColors.slate)),
-          Text(value,
-              style:
-                  const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
-        ],
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(children: [
+        Icon(icon, size: 18, color: AppColors.violet),
+        const SizedBox(width: 10),
+        Text('$label: ',
+            style: const TextStyle(
+                color: AppColors.slate, fontSize: 13)),
+        Expanded(
+          child: Text(value,
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+        ),
+      ]),
     );
   }
 }

@@ -31,6 +31,7 @@ import '../../features/onboarding/onboarding_screen.dart';
 import '../../features/onboarding/splash_screen.dart';
 import '../../features/vendor/availability_screen.dart';
 import '../../features/vendor/payouts_screen.dart';
+import '../../features/vendor/vendor_packages_screen.dart';
 import '../../features/vendor/vendor_shell.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -127,6 +128,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(path: '/vendor/payouts', builder: (_, _) => const PayoutsScreen()),
+      GoRoute(path: '/vendor/packages', builder: (_, _) => const VendorPackagesScreen()),
       GoRoute(path: '/vendor', builder: (_, _) => const VendorShell()),
 
       // ── Admin ────────────────────────────────────────────────────────────

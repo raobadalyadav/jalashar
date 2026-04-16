@@ -156,26 +156,20 @@ class _ConfirmationBody extends StatelessWidget {
 
               const SizedBox(height: 16),
 
-              // Payment card
+              // Free platform badge + next steps
               _DetailCard(
                 children: [
-                  _Row('Total Amount', Fmt.currency(booking.totalAmount),
-                      icon: Icons.currency_rupee,
-                      valueColor: AppColors.violet,
+                  _Row('Platform Fee', 'Free',
+                      icon: Icons.check_circle_outline_rounded,
+                      valueColor: AppColors.success,
                       bold: true),
                   const Divider(height: 1),
-                  _Row(
-                    'Advance (30%)',
-                    Fmt.currency(booking.totalAmount * 0.3),
-                    icon: Icons.payment,
-                    valueColor: AppColors.success,
-                  ),
+                  _Row('Next Step', 'Vendor will confirm soon',
+                      icon: Icons.pending_actions_rounded),
                   const Divider(height: 1),
-                  _Row(
-                    'Balance Due',
-                    Fmt.currency(booking.totalAmount * 0.7),
-                    icon: Icons.pending_actions,
-                  ),
+                  _Row('Chat', 'Message vendor anytime',
+                      icon: Icons.chat_bubble_outline_rounded,
+                      valueColor: AppColors.violet),
                 ],
               ).animate().fadeIn(delay: 500.ms).slideY(begin: 0.1),
 

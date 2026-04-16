@@ -195,7 +195,7 @@ class _BannerCarouselState extends ConsumerState<_BannerCarousel> {
                     height: 6,
                     decoration: BoxDecoration(
                       color: _current == i
-                          ? AppColors.saffron
+                          ? AppColors.violet
                           : Colors.grey.shade300,
                       borderRadius: BorderRadius.circular(3),
                     ),
@@ -283,7 +283,7 @@ class _GradientBg extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.saffron, AppColors.deepMaroon],
+          colors: [AppColors.violet, AppColors.violetDeep],
         ),
       ),
     );
@@ -302,7 +302,7 @@ class _StaticBanner extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.saffron, AppColors.deepMaroon],
+          colors: [AppColors.violet, AppColors.violetDeep],
         ),
       ),
       child: Column(
@@ -325,7 +325,7 @@ class _StaticBanner extends StatelessWidget {
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: Colors.white,
-              foregroundColor: AppColors.deepMaroon,
+              foregroundColor: AppColors.violetDeep,
               minimumSize: const Size(140, 44),
             ),
             onPressed: () => context.push('/search'),
@@ -370,7 +370,7 @@ class _CategoryRow extends StatelessWidget {
               width: 80,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
-                color: AppColors.ivory,
+                color: AppColors.violetSoft,
                 border: Border.all(color: Colors.transparent),
               ),
               child: Column(
@@ -379,10 +379,10 @@ class _CategoryRow extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppColors.deepMaroon.withValues(alpha: 0.08),
+                      color: AppColors.violet.withValues(alpha: 0.08),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(icon, color: AppColors.deepMaroon, size: 24),
+                    child: Icon(icon, color: AppColors.violet, size: 24),
                   ),
                   const SizedBox(height: 6),
                   Text(
@@ -398,6 +398,35 @@ class _CategoryRow extends StatelessWidget {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+// ── Service Icon Fallback ─────────────────────────────────────────────────────
+
+class _ServiceIconFallback extends StatelessWidget {
+  const _ServiceIconFallback({required this.name});
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : 'S';
+    return Container(
+      width: 56,
+      height: 56,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.violet, AppColors.violetDeep],
+        ),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        initial,
+        style: const TextStyle(
+            color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -422,14 +451,18 @@ class _ServiceCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.ivory,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.celebration,
-                      color: AppColors.deepMaroon, size: 28),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: service.imageUrl != null
+                      ? CachedNetworkImage(
+                          imageUrl: service.imageUrl!,
+                          width: 56,
+                          height: 56,
+                          fit: BoxFit.cover,
+                          errorWidget: (_, __, ___) => _ServiceIconFallback(
+                              name: service.name),
+                        )
+                      : _ServiceIconFallback(name: service.name),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -450,7 +483,7 @@ class _ServiceCard extends StatelessWidget {
                     Text(Fmt.currency(service.basePrice),
                         style: const TextStyle(
                             fontWeight: FontWeight.w700,
-                            color: AppColors.deepMaroon,
+                            color: AppColors.violet,
                             fontSize: 15)),
                     const Text('onwards',
                         style:

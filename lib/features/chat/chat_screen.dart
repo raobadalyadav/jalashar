@@ -181,7 +181,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                 strokeWidth: 2, color: Colors.white))
                         : const Icon(Icons.send_rounded),
                     style: IconButton.styleFrom(
-                      backgroundColor: AppColors.saffron,
+                      backgroundColor: AppColors.violet,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.all(12),
                     ),
@@ -254,7 +254,7 @@ class _Bubble extends StatelessWidget {
         constraints:
             BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
         decoration: BoxDecoration(
-          color: isMine ? AppColors.saffron : Colors.grey.shade200,
+          color: isMine ? AppColors.violet : Colors.grey.shade200,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(18),
             topRight: const Radius.circular(18),

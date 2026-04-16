@@ -162,27 +162,6 @@ class StorageRepository {
 final storageRepoProvider =
     Provider((ref) => StorageRepository(ref.watch(supabaseClientProvider)));
 
-// ========== PAYMENTS (Razorpay via Edge Function) ==========
-class PaymentRepository {
-  PaymentRepository(this._client);
-  final SupabaseClient _client;
-
-  Future<Map<String, dynamic>> createOrder({
-    required String bookingId,
-    required double amount,
-  }) async {
-    final resp = await _client.functions.invoke(
-      'create-razorpay-order',
-      body: {'booking_id': bookingId, 'amount': amount},
-    );
-    if (resp.data == null) throw Exception('Payment init failed');
-    return Map<String, dynamic>.from(resp.data as Map);
-  }
-}
-
-final paymentRepoProvider =
-    Provider((ref) => PaymentRepository(ref.watch(supabaseClientProvider)));
-
 // ========== USER PROFILE ==========
 class UserRepository {
   UserRepository(this._client);

@@ -7,6 +7,7 @@ import '../../core/ui/widgets.dart';
 import 'bookings_tab.dart';
 import 'explore_tab.dart';
 import 'home_tab.dart';
+import 'messages_tab.dart';
 import 'profile_tab.dart';
 
 class ClientShell extends ConsumerStatefulWidget {
@@ -21,6 +22,7 @@ class _ClientShellState extends ConsumerState<ClientShell> {
   static const _tabs = [
     HomeTab(),
     ExploreTab(),
+    MessagesTab(),
     BookingsTab(),
     ProfileTab(),
   ];
@@ -28,12 +30,15 @@ class _ClientShellState extends ConsumerState<ClientShell> {
   @override
   Widget build(BuildContext context) {
     final unreadAsync = ref.watch(notificationUnreadCountProvider);
-    final unread = unreadAsync.valueOrNull ?? 0;
+    final notifUnread = unreadAsync.valueOrNull ?? 0;
+    final convosAsync = ref.watch(myConversationsProvider);
+    final msgUnread = convosAsync.valueOrNull
+            ?.fold<int>(0, (s, c) => s + c.unread) ??
+        0;
 
     return Scaffold(
       body: Column(
         children: [
-          // Offline banner at the very top
           const ConnectivityBanner(),
           Expanded(
             child: IndexedStack(index: _index, children: _tabs),
@@ -55,19 +60,32 @@ class _ClientShellState extends ConsumerState<ClientShell> {
             label: 'nav.explore'.tr(),
           ),
           NavigationDestination(
+            icon: Badge(
+              isLabelVisible: msgUnread > 0,
+              label: Text(msgUnread > 9 ? '9+' : '$msgUnread'),
+              child: const Icon(Icons.chat_bubble_outline_rounded),
+            ),
+            selectedIcon: Badge(
+              isLabelVisible: msgUnread > 0,
+              label: Text(msgUnread > 9 ? '9+' : '$msgUnread'),
+              child: const Icon(Icons.chat_bubble_rounded),
+            ),
+            label: 'Messages',
+          ),
+          NavigationDestination(
             icon: const Icon(Icons.event_note_outlined),
             selectedIcon: const Icon(Icons.event_note_rounded),
             label: 'nav.bookings'.tr(),
           ),
           NavigationDestination(
             icon: Badge(
-              isLabelVisible: unread > 0,
-              label: Text(unread > 9 ? '9+' : '$unread'),
+              isLabelVisible: notifUnread > 0,
+              label: Text(notifUnread > 9 ? '9+' : '$notifUnread'),
               child: const Icon(Icons.person_outline_rounded),
             ),
             selectedIcon: Badge(
-              isLabelVisible: unread > 0,
-              label: Text(unread > 9 ? '9+' : '$unread'),
+              isLabelVisible: notifUnread > 0,
+              label: Text(notifUnread > 9 ? '9+' : '$notifUnread'),
               child: const Icon(Icons.person_rounded),
             ),
             label: 'nav.profile'.tr(),

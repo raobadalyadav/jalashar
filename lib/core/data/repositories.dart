@@ -59,6 +59,7 @@ class VendorRepository {
     required String city,
     required double basePrice,
     required List<String> portfolioUrls,
+    Map<String, dynamic> meta = const {},
   }) async {
     final uid = _client.auth.currentUser!.id;
     await _client.from('vendors').upsert({
@@ -68,6 +69,7 @@ class VendorRepository {
       'city': city,
       'base_price': basePrice,
       'portfolio_urls': portfolioUrls,
+      'meta': meta,
     });
   }
 
@@ -122,7 +124,7 @@ class BookingRepository {
         .insert({
           'client_id': uid,
           if (serviceId != null && serviceId.isNotEmpty) 'service_id': serviceId,
-          if (vendorId != null) 'vendor_id': vendorId,
+          'vendor_id': vendorId,
           'event_date': eventDate.toIso8601String().substring(0, 10),
           'guest_count': guestCount,
           'venue': venue,
@@ -214,10 +216,82 @@ class MessageRepository {
           .update({'is_read': true})
           .eq('booking_id', bookingId)
           .eq('receiver_id', myId);
+
+  Future<int> unreadForBooking(String bookingId, String myId) async {
+    final rows = await _client
+        .from('messages')
+        .select()
+        .eq('booking_id', bookingId)
+        .eq('receiver_id', myId)
+        .eq('is_read', false);
+    return (rows as List).length;
+  }
+
+  Future<Message?> lastMessage(String bookingId) async {
+    final rows = await _client
+        .from('messages')
+        .select()
+        .eq('booking_id', bookingId)
+        .order('created_at', ascending: false)
+        .limit(1);
+    final list = rows as List;
+    return list.isEmpty ? null : Message.fromRow(list.first);
+  }
 }
 
 final messageRepoProvider =
     Provider((ref) => MessageRepository(ref.watch(supabaseClientProvider)));
+
+// ========== CONVERSATION INBOX ==========
+class ConversationSummary {
+  final Booking booking;
+  final Message? lastMsg;
+  final int unread;
+  const ConversationSummary({
+    required this.booking,
+    this.lastMsg,
+    this.unread = 0,
+  });
+}
+
+final myConversationsProvider =
+    FutureProvider<List<ConversationSummary>>((ref) async {
+  final bookings = await ref.watch(bookingRepoProvider).listMine();
+  final repo = ref.watch(messageRepoProvider);
+  final uid = ref.watch(supabaseClientProvider).auth.currentUser?.id ?? '';
+  final convos = <ConversationSummary>[];
+  for (final b in bookings) {
+    if (b.vendorId == null) continue;
+    final last = await repo.lastMessage(b.id);
+    final unread = last != null ? await repo.unreadForBooking(b.id, uid) : 0;
+    convos.add(ConversationSummary(booking: b, lastMsg: last, unread: unread));
+  }
+  convos.sort((a, b) {
+    final aTime = a.lastMsg?.createdAt ?? a.booking.createdAt;
+    final bTime = b.lastMsg?.createdAt ?? b.booking.createdAt;
+    return bTime.compareTo(aTime);
+  });
+  return convos;
+});
+
+final vendorConversationsProvider =
+    FutureProvider<List<ConversationSummary>>((ref) async {
+  final bookings = await ref.watch(bookingRepoProvider).listForVendor();
+  final repo = ref.watch(messageRepoProvider);
+  final uid = ref.watch(supabaseClientProvider).auth.currentUser?.id ?? '';
+  final convos = <ConversationSummary>[];
+  for (final b in bookings) {
+    final last = await repo.lastMessage(b.id);
+    final unread = last != null ? await repo.unreadForBooking(b.id, uid) : 0;
+    convos.add(ConversationSummary(booking: b, lastMsg: last, unread: unread));
+  }
+  convos.sort((a, b) {
+    final aTime = a.lastMsg?.createdAt ?? a.booking.createdAt;
+    final bTime = b.lastMsg?.createdAt ?? b.booking.createdAt;
+    return bTime.compareTo(aTime);
+  });
+  return convos;
+});
 
 // ========== NOTIFICATIONS ==========
 class NotificationRepository {
@@ -258,3 +332,79 @@ final notificationsProvider = FutureProvider<List<AppNotification>>(
 
 final notificationUnreadCountProvider = FutureProvider<int>(
     (ref) => ref.watch(notificationRepoProvider).unreadCount());
+
+// ========== VENDOR PACKAGES ==========
+class VendorPackageRepository {
+  VendorPackageRepository(this._client);
+  final SupabaseClient _client;
+
+  Future<String?> myVendorId() async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return null;
+    final row = await _client
+        .from('vendors')
+        .select('id')
+        .eq('user_id', uid)
+        .maybeSingle();
+    return row?['id'] as String?;
+  }
+
+  Future<List<VendorPackage>> listForVendor(String vendorId) async {
+    final rows = await _client
+        .from('vendor_packages')
+        .select()
+        .eq('vendor_id', vendorId)
+        .order('price');
+    return (rows as List).map((e) => VendorPackage.fromRow(e)).toList();
+  }
+
+  Future<List<VendorPackage>> listMine() async {
+    final uid = _client.auth.currentUser!.id;
+    final vendorRow = await _client
+        .from('vendors')
+        .select('id')
+        .eq('user_id', uid)
+        .maybeSingle();
+    if (vendorRow == null) return [];
+    return listForVendor(vendorRow['id'] as String);
+  }
+
+  Future<void> upsert({
+    String? id,
+    required String vendorId,
+    required String name,
+    required double price,
+    int? durationHours,
+    List<String> features = const [],
+    String? eventType,
+  }) async {
+    final data = {
+      'vendor_id': vendorId,
+      'name': name,
+      'price': price,
+      'duration_hours': durationHours,
+      'features': features,
+      if (eventType != null && eventType.isNotEmpty) 'event_type': eventType,
+    };
+    if (id != null) {
+      await _client.from('vendor_packages').update(data).eq('id', id);
+    } else {
+      await _client.from('vendor_packages').insert(data);
+    }
+  }
+
+  Future<void> delete(String id) =>
+      _client.from('vendor_packages').delete().eq('id', id);
+}
+
+final vendorPackageRepoProvider =
+    Provider((ref) => VendorPackageRepository(ref.watch(supabaseClientProvider)));
+
+final vendorPackagesProvider =
+    FutureProvider.family<List<VendorPackage>, String>(
+  (ref, vendorId) =>
+      ref.watch(vendorPackageRepoProvider).listForVendor(vendorId),
+);
+
+final myVendorPackagesProvider = FutureProvider<List<VendorPackage>>(
+    (ref) => ref.watch(vendorPackageRepoProvider).listMine());

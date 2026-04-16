@@ -81,6 +81,7 @@ class Vendor {
   final List<String> portfolioUrls;
   final String? name;
   final String? avatarUrl;
+  final Map<String, dynamic> meta;
 
   const Vendor({
     required this.id,
@@ -94,6 +95,7 @@ class Vendor {
     this.portfolioUrls = const [],
     this.name,
     this.avatarUrl,
+    this.meta = const {},
   });
 
   factory Vendor.fromRow(Map<String, dynamic> r) {
@@ -111,8 +113,39 @@ class Vendor {
           (r['portfolio_urls'] as List?)?.map((e) => e.toString()).toList() ?? const [],
       name: user?['name'] as String?,
       avatarUrl: user?['avatar_url'] as String?,
+      meta: (r['meta'] as Map<String, dynamic>?) ?? const {},
     );
   }
+}
+
+class VendorPackage {
+  final String id;
+  final String vendorId;
+  final String name;
+  final double price;
+  final int? durationHours;
+  final List<String> features;
+  final String? eventType;
+
+  const VendorPackage({
+    required this.id,
+    required this.vendorId,
+    required this.name,
+    required this.price,
+    this.durationHours,
+    this.features = const [],
+    this.eventType,
+  });
+
+  factory VendorPackage.fromRow(Map<String, dynamic> r) => VendorPackage(
+        id: r['id'] as String,
+        vendorId: r['vendor_id'] as String,
+        name: r['name'] as String,
+        price: (r['price'] as num).toDouble(),
+        durationHours: r['duration_hours'] as int?,
+        features: (r['features'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+        eventType: r['event_type'] as String?,
+      );
 }
 
 class Booking {

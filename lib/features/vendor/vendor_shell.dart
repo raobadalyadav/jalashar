@@ -11,6 +11,7 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/data/extra_repositories.dart';
 import '../../core/data/repositories.dart';
 import '../../core/models/models.dart';
+import '../../core/models/vendor_meta.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/ui/widgets.dart';
 import '../../core/utils/formatters.dart';
@@ -27,11 +28,17 @@ class _VendorShellState extends ConsumerState<VendorShell> {
 
   @override
   Widget build(BuildContext context) {
+    final convosAsync = ref.watch(vendorConversationsProvider);
+    final msgUnread = convosAsync.valueOrNull
+            ?.fold<int>(0, (s, c) => s + c.unread) ??
+        0;
+
     return Scaffold(
       body: IndexedStack(
         index: _index,
         children: const [
           _VendorOverview(),
+          _VendorMessages(),
           _VendorBookings(),
           _VendorProfile(),
         ],
@@ -39,18 +46,31 @@ class _VendorShellState extends ConsumerState<VendorShell> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: const [
-          NavigationDestination(
+        destinations: [
+          const NavigationDestination(
             icon: Icon(Icons.dashboard_outlined),
             selectedIcon: Icon(Icons.dashboard_rounded),
             label: 'Overview',
           ),
           NavigationDestination(
+            icon: Badge(
+              isLabelVisible: msgUnread > 0,
+              label: Text(msgUnread > 9 ? '9+' : '$msgUnread'),
+              child: const Icon(Icons.chat_bubble_outline_rounded),
+            ),
+            selectedIcon: Badge(
+              isLabelVisible: msgUnread > 0,
+              label: Text(msgUnread > 9 ? '9+' : '$msgUnread'),
+              child: const Icon(Icons.chat_bubble_rounded),
+            ),
+            label: 'Messages',
+          ),
+          const NavigationDestination(
             icon: Icon(Icons.event_outlined),
             selectedIcon: Icon(Icons.event_rounded),
             label: 'Bookings',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.store_outlined),
             selectedIcon: Icon(Icons.store_rounded),
             label: 'Profile',
@@ -446,6 +466,149 @@ class _RecentBookingTile extends StatelessWidget {
   }
 }
 
+// ── Messages Tab ──────────────────────────────────────────────────────────────
+
+class _VendorMessages extends ConsumerWidget {
+  const _VendorMessages();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final convos = ref.watch(vendorConversationsProvider);
+    final me = ref.watch(supabaseClientProvider).auth.currentUser?.id ?? '';
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Messages'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: () => ref.invalidate(vendorConversationsProvider),
+          ),
+        ],
+      ),
+      body: convos.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => ErrorView(error: e),
+        data: (list) {
+          if (list.isEmpty) {
+            return const EmptyState(
+              icon: Icons.chat_bubble_outline_rounded,
+              title: 'No conversations yet',
+              subtitle: 'Client messages will appear here after they book you',
+            );
+          }
+          return RefreshIndicator(
+            color: AppColors.violet,
+            onRefresh: () async => ref.invalidate(vendorConversationsProvider),
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              itemCount: list.length,
+              separatorBuilder: (_, __) =>
+                  const Divider(height: 1, indent: 72, endIndent: 16),
+              itemBuilder: (_, i) {
+                final c = list[i];
+                final booking = c.booking;
+                final lastMsg = c.lastMsg;
+                final isMine = lastMsg?.senderId == me;
+                return ListTile(
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  leading: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: const BoxDecoration(
+                      gradient: AppColors.brandGradient,
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      'C',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 18),
+                    ),
+                  ),
+                  title: Row(children: [
+                    Expanded(
+                      child: Text(
+                        'Booking #${booking.id.substring(0, 6).toUpperCase()}',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 14),
+                      ),
+                    ),
+                    if (lastMsg != null)
+                      Text(
+                        Fmt.timeAgo(lastMsg.createdAt),
+                        style: const TextStyle(
+                            fontSize: 11, color: AppColors.slate),
+                      ),
+                  ]),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 2),
+                      Row(children: [
+                        if (isMine)
+                          const Text('You: ',
+                              style: TextStyle(
+                                  color: AppColors.slate, fontSize: 12)),
+                        Expanded(
+                          child: Text(
+                            lastMsg?.content ?? 'Start conversation →',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: lastMsg == null
+                                  ? AppColors.violet
+                                  : AppColors.slate,
+                              fontSize: 13,
+                              fontStyle: lastMsg == null
+                                  ? FontStyle.italic
+                                  : null,
+                            ),
+                          ),
+                        ),
+                        if (c.unread > 0)
+                          Container(
+                            margin: const EdgeInsets.only(left: 6),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.violet,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              c.unread > 9 ? '9+' : '${c.unread}',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                      ]),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${booking.status.label} · ${Fmt.date(booking.eventDate)}',
+                        style: const TextStyle(
+                            fontSize: 11, color: AppColors.slate),
+                      ),
+                    ],
+                  ),
+                  onTap: () => context.push(
+                      '/chat/${booking.id}/${booking.clientId}'),
+                ).animate()
+                    .fadeIn(delay: Duration(milliseconds: i * 40))
+                    .slideX(begin: -0.05);
+              },
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
 // ── Bookings Tab ──────────────────────────────────────────────────────────────
 
 class _VendorBookings extends ConsumerWidget {
@@ -638,6 +801,8 @@ class _VendorProfileState extends ConsumerState<_VendorProfile> {
   final _city = TextEditingController();
   final _price = TextEditingController();
   final List<String> _portfolio = [];
+  Map<String, dynamic> _meta = {};
+  final Map<String, TextEditingController> _metaCtrls = {};
   bool _loading = false;
   bool _initialized = false;
 
@@ -650,6 +815,18 @@ class _VendorProfileState extends ConsumerState<_VendorProfile> {
     }
   }
 
+  @override
+  void dispose() {
+    _category.dispose();
+    _bio.dispose();
+    _city.dispose();
+    _price.dispose();
+    for (final c in _metaCtrls.values) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
   Future<void> _loadExisting() async {
     try {
       final vendor = await ref.read(vendorRepoProvider).myVendor();
@@ -660,10 +837,16 @@ class _VendorProfileState extends ConsumerState<_VendorProfile> {
         _price.text = vendor.basePrice?.toString() ?? '';
         setState(() {
           _portfolio.addAll(vendor.portfolioUrls);
+          _meta = Map<String, dynamic>.from(vendor.meta);
         });
       }
     } catch (_) {}
   }
+
+  TextEditingController _metaCtrl(String key) =>
+      _metaCtrls.putIfAbsent(key, () => TextEditingController(
+            text: _meta[key]?.toString() ?? '',
+          ));
 
   Future<void> _addPhoto() async {
     if (!await AppPermissions.photos()) return;
@@ -692,12 +875,17 @@ class _VendorProfileState extends ConsumerState<_VendorProfile> {
     }
     setState(() => _loading = true);
     try {
+      // Flush text-based meta controllers into _meta map
+      for (final entry in _metaCtrls.entries) {
+        _meta[entry.key] = entry.value.text.trim();
+      }
       await ref.read(vendorRepoProvider).upsertMyVendor(
             category: _category.text.trim(),
             bio: _bio.text.trim(),
             city: _city.text.trim(),
             basePrice: double.tryParse(_price.text) ?? 0,
             portfolioUrls: _portfolio,
+            meta: _meta,
           );
       if (mounted) AppSnack.success(context, 'Profile saved successfully');
     } catch (e) {
@@ -705,6 +893,62 @@ class _VendorProfileState extends ConsumerState<_VendorProfile> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Widget _buildSpecializationsSection() {
+    final fields = VendorCategoryMeta.forCategory(_category.text.toLowerCase());
+    return _SectionCard(
+      title: 'Specializations',
+      icon: Icons.star_outline_rounded,
+      children: [
+        for (final field in fields) ...[
+          Text(field.label,
+              style: const TextStyle(
+                  fontWeight: FontWeight.w600, fontSize: 13)),
+          const SizedBox(height: 8),
+          if (field.type == MetaFieldType.multiselect) ...[
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: field.options.map((opt) {
+                final selected =
+                    (_meta[field.key] as List? ?? []).contains(opt);
+                return FilterChip(
+                  label: Text(opt, style: const TextStyle(fontSize: 12)),
+                  selected: selected,
+                  selectedColor: AppColors.violet.withValues(alpha: 0.15),
+                  checkmarkColor: AppColors.violet,
+                  onSelected: (v) {
+                    setState(() {
+                      final list =
+                          List<String>.from(_meta[field.key] as List? ?? []);
+                      if (v) {
+                        list.add(opt);
+                      } else {
+                        list.remove(opt);
+                      }
+                      _meta[field.key] = list;
+                    });
+                  },
+                );
+              }).toList(),
+            ),
+          ] else ...[
+            TextField(
+              controller: _metaCtrl(field.key),
+              keyboardType: field.type == MetaFieldType.number
+                  ? TextInputType.number
+                  : TextInputType.text,
+              decoration: InputDecoration(
+                hintText: field.label,
+                isDense: true,
+              ),
+            ),
+          ],
+          const SizedBox(height: 14),
+        ],
+      ],
+    );
   }
 
   @override
@@ -763,6 +1007,49 @@ class _VendorProfileState extends ConsumerState<_VendorProfile> {
                     labelText: 'Base Price (₹)',
                     prefixIcon: Icon(Icons.currency_rupee_rounded),
                   ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Section: Specializations (category-specific)
+            if (VendorCategoryMeta.hasFields(_category.text.toLowerCase()))
+              _buildSpecializationsSection(),
+            if (VendorCategoryMeta.hasFields(_category.text.toLowerCase()))
+              const SizedBox(height: 16),
+
+            // Section: Packages & Pricing
+            _SectionCard(
+              title: 'Packages & Pricing',
+              icon: Icons.inventory_2_outlined,
+              trailing: TextButton.icon(
+                onPressed: () => context.push('/vendor/packages'),
+                icon: const Icon(Icons.open_in_new_rounded, size: 14),
+                label: const Text('Manage'),
+              ),
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.violet.withValues(alpha: 0.08),
+                        AppColors.violetDeep.withValues(alpha: 0.05),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(children: [
+                    const Icon(Icons.info_outline_rounded,
+                        color: AppColors.violet, size: 18),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        'Set pricing for Wedding, Birthday, Corporate & more. Clients can see your packages before booking.',
+                        style: TextStyle(fontSize: 13, height: 1.4),
+                      ),
+                    ),
+                  ]),
                 ),
               ],
             ),
