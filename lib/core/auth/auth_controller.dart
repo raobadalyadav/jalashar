@@ -19,6 +19,7 @@ class AppUser {
   final String? phone;
   final String? name;
   final String? avatarUrl;
+  final String? city;
   final UserRole role;
   final String locale;
 
@@ -30,6 +31,7 @@ class AppUser {
     this.phone,
     this.name,
     this.avatarUrl,
+    this.city,
   });
 
   factory AppUser.fromRow(Map<String, dynamic> row) => AppUser(
@@ -38,6 +40,7 @@ class AppUser {
         phone: row['phone'] as String?,
         name: row['name'] as String?,
         avatarUrl: row['avatar_url'] as String?,
+        city: row['city'] as String?,
         role: UserRole.fromString(row['role'] as String?),
         locale: (row['locale'] as String?) ?? 'en',
       );
@@ -50,7 +53,7 @@ final currentUserProvider = FutureProvider<AppUser?>((ref) async {
   ref.watch(authStateProvider);
   final row = await client
       .from('users')
-      .select('id,email,phone,name,avatar_url,role,locale')
+      .select('id,email,phone,name,avatar_url,city,role,locale')
       .eq('id', authUser.id)
       .maybeSingle();
   if (row == null) return null;

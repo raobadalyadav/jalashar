@@ -201,6 +201,7 @@ class UserRepository {
     String? name,
     String? phone,
     String? avatarUrl,
+    String? city,
     String? locale,
   }) async {
     final uid = _client.auth.currentUser!.id;
@@ -208,9 +209,10 @@ class UserRepository {
       'name': name,
       'phone': phone,
       'avatar_url': avatarUrl,
+      'city': city,
       'locale': locale,
       'updated_at': DateTime.now().toIso8601String(),
-    }).eq('id', uid);
+    }..removeWhere((_, v) => v == null)).eq('id', uid);
   }
 }
 

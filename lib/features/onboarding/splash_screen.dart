@@ -47,20 +47,28 @@ class _SplashScreenState extends State<SplashScreen> {
         target = onboardingDone ? '/auth/sign-in' : '/onboarding';
       } else {
         String? roleStr;
+        String? fullName;
         try {
           final row = await Supabase.instance.client
               .from('users')
-              .select('role')
+              .select('role, name')
               .eq('id', session.user.id)
               .maybeSingle()
               .timeout(const Duration(seconds: 5));
           roleStr = row?['role'] as String?;
-          debugPrint('[SPLASH] role=$roleStr');
+          fullName = row?['name'] as String?;
+          debugPrint('[SPLASH] role=$roleStr name=$fullName');
         } catch (e) {
-          debugPrint('[SPLASH] role fetch failed: $e');
+          debugPrint('[SPLASH] profile fetch failed: $e');
         }
+
+        final profileComplete = fullName != null && fullName.trim().isNotEmpty;
+
         if (roleStr == null) {
           target = '/auth/role';
+        } else if (!profileComplete) {
+          // Role selected but profile not filled — send to edit profile
+          target = '/profile/edit';
         } else {
           final role = UserRole.fromString(roleStr);
           target = switch (role) {

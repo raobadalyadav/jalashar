@@ -63,7 +63,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             avatarUrl: _avatarUrl,
           );
       ref.invalidate(currentUserProvider);
-      if (mounted) context.pop();
+      if (mounted) {
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/home');
+        }
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -77,7 +83,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit profile')),
+      appBar: AppBar(
+        title: const Text('Complete your profile'),
+        automaticallyImplyLeading: context.canPop(),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [

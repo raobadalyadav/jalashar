@@ -44,11 +44,62 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
+    final user = ref.watch(currentUserProvider).valueOrNull;
+    final profileIncomplete =
+        user == null || (user.name?.trim().isEmpty ?? true);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
+          // ── Profile completion banner ─────────────────────────────────────
+          if (profileIncomplete)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: Material(
+                color: AppColors.saffron.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(16),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () => context.push('/profile/edit'),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 14),
+                    child: Row(children: [
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: AppColors.saffron.withValues(alpha: 0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.person_add_rounded,
+                            color: AppColors.saffron, size: 22),
+                      ),
+                      const SizedBox(width: 14),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Complete your profile',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14)),
+                            SizedBox(height: 2),
+                            Text('Add your name & photo to get started',
+                                style: TextStyle(
+                                    fontSize: 12, color: AppColors.slate)),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right_rounded,
+                          color: AppColors.saffron),
+                    ]),
+                  ),
+                ),
+              ),
+            ),
+
           // ── Account ──────────────────────────────────────────────────────
           _Section(title: 'Account', children: [
             _Tile(

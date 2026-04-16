@@ -370,40 +370,41 @@ class _VendorDetailScreenState extends ConsumerState<VendorDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // ── Rating + tags ──────────────────────────────────────
-                  Row(children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.gold.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(20),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.gold.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          const Icon(Icons.star,
+                              color: AppColors.gold, size: 16),
+                          const SizedBox(width: 4),
+                          Text(vendor.ratingAvg.toStringAsFixed(1),
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w700)),
+                        ]),
                       ),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.star,
-                            color: AppColors.gold, size: 16),
-                        const SizedBox(width: 4),
-                        Text(vendor.ratingAvg.toStringAsFixed(1),
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w700)),
-                      ]),
-                    ),
-                    const SizedBox(width: 8),
-                    Chip(label: Text(vendor.category)),
-                    if (vendor.city != null) ...[
-                      const SizedBox(width: 6),
-                      Chip(
-                        avatar: const Icon(Icons.location_on, size: 14),
-                        label: Text(vendor.city!),
-                      ),
+                      Chip(label: Text(vendor.category)),
+                      if (vendor.city != null)
+                        Chip(
+                          avatar: const Icon(Icons.location_on, size: 14),
+                          label: Text(vendor.city!),
+                        ),
+                      if (vendor.isVerified)
+                        const Chip(
+                          avatar: Icon(Icons.verified,
+                              color: Colors.blue, size: 16),
+                          label: Text('Verified'),
+                        ),
                     ],
-                    const Spacer(),
-                    if (vendor.isVerified)
-                      const Chip(
-                        avatar: Icon(Icons.verified,
-                            color: Colors.blue, size: 16),
-                        label: Text('Verified'),
-                      ),
-                  ]).animate().fadeIn(),
+                  ).animate().fadeIn(),
 
                   const SizedBox(height: 12),
 
