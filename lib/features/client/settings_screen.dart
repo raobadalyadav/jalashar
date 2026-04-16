@@ -128,11 +128,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
-                    color: AppColors.charcoal.withValues(alpha: 0.1),
+                    color: AppColors.violet.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(Icons.dark_mode_rounded,
-                      color: AppColors.charcoal, size: 20),
+                      color: AppColors.violet, size: 20),
                 ),
                 const SizedBox(width: 14),
                 const Expanded(

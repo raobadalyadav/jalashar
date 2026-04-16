@@ -380,8 +380,7 @@ class _RatingBreakdown extends StatelessWidget {
                 avg.toStringAsFixed(1),
                 style: const TextStyle(
                     fontSize: 42,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.charcoal),
+                    fontWeight: FontWeight.w800),
               ),
               Row(
                 mainAxisSize: MainAxisSize.min,

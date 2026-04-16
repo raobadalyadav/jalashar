@@ -16,7 +16,7 @@ class WishlistRepository {
     final uid = _client.auth.currentUser!.id;
     final rows = await _client
         .from('wishlist')
-        .select('vendors(*, users(name, avatar_url))')
+        .select('vendors!inner(*, users!vendors_user_id_fkey(name, avatar_url))')
         .eq('user_id', uid);
     return (rows as List)
         .where((e) => e['vendors'] != null)

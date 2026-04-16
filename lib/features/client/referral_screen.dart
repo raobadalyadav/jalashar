@@ -85,9 +85,9 @@ class ReferralScreen extends ConsumerWidget {
                                       fontSize: 22,
                                       fontWeight: FontWeight.w700,
                                       letterSpacing: 2,
-                                      color: AppColors.violetDeep)),
+                                      color: AppColors.violet)),
                             ),
-                            const Icon(Icons.copy, color: AppColors.violetDeep),
+                            const Icon(Icons.copy, color: AppColors.violet),
                           ]),
                         ),
                       ),
@@ -107,7 +107,7 @@ class ReferralScreen extends ConsumerWidget {
                                 .headlineMedium
                                 ?.copyWith(
                                     fontWeight: FontWeight.w700,
-                                    color: AppColors.violetDeep)),
+                                    color: AppColors.violet)),
                         const Text('Total Referrals'),
                       ]),
                     ),

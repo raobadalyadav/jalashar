@@ -685,8 +685,7 @@ class _StatChip extends StatelessWidget {
         Text(label,
             style: const TextStyle(
                 fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.charcoal)),
+                fontWeight: FontWeight.w600)),
       ]),
     );
   }
@@ -1261,8 +1260,7 @@ class _ReviewCard extends StatelessWidget {
                 review.comment!.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(review.comment!,
-                  style: const TextStyle(
-                      height: 1.5, color: AppColors.charcoal)),
+                  style: const TextStyle(height: 1.5)),
             ],
             const SizedBox(height: 4),
             Text(Fmt.date(review.createdAt),

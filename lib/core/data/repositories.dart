@@ -36,7 +36,7 @@ class VendorRepository {
   final SupabaseClient _client;
 
   Future<List<Vendor>> list({String? category, String? city, String? query}) async {
-    var q = _client.from('vendors').select('*, users(name, avatar_url)');
+    var q = _client.from('vendors').select('*, users!vendors_user_id_fkey(name, avatar_url)');
     if (category != null) q = q.eq('category', category);
     if (city != null) q = q.eq('city', city);
     if (query != null && query.isNotEmpty) q = q.ilike('bio', '%$query%');
@@ -47,7 +47,7 @@ class VendorRepository {
   Future<Vendor?> getById(String id) async {
     final row = await _client
         .from('vendors')
-        .select('*, users(name, avatar_url)')
+        .select('*, users!vendors_user_id_fkey(name, avatar_url)')
         .eq('id', id)
         .maybeSingle();
     return row == null ? null : Vendor.fromRow(row);
@@ -109,7 +109,7 @@ class VendorRepository {
     if (uid == null) return null;
     final row = await _client
         .from('vendors')
-        .select('*, users(name, avatar_url)')
+        .select('*, users!vendors_user_id_fkey(name, avatar_url)')
         .eq('user_id', uid)
         .maybeSingle();
     return row == null ? null : Vendor.fromRow(row);
@@ -118,7 +118,7 @@ class VendorRepository {
   Future<List<Vendor>> listPendingVerification() async {
     final rows = await _client
         .from('vendors')
-        .select('*, users(name, avatar_url)')
+        .select('*, users!vendors_user_id_fkey(name, avatar_url)')
         .eq('is_verified', false)
         .order('created_at', ascending: false);
     return (rows as List).map((e) => Vendor.fromRow(e)).toList();
