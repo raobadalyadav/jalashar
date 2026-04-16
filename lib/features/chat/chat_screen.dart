@@ -1,11 +1,25 @@
+import 'dart:io';
+
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/auth/auth_controller.dart';
+import '../../core/data/extra_repositories.dart';
 import '../../core/data/repositories.dart';
 import '../../core/models/models.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
+
+const _quickReplies = [
+  "Thank you! I'll confirm shortly.",
+  "I'm available on that date.",
+  'Please call me to discuss details.',
+  "I'll contact you 2 days before the event.",
+  'Could you share more details?',
+  'Payment is to be done directly.',
+];
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen(
@@ -21,6 +35,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _text = TextEditingController();
   final _scrollCtrl = ScrollController();
   bool _sending = false;
+  bool _showQuickReplies = false;
 
   @override
   void dispose() {
@@ -43,22 +58,47 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Future<void> _markRead(String myId) async {
     try {
-      await ref
-          .read(messageRepoProvider)
-          .markAllRead(widget.bookingId, myId);
+      await ref.read(messageRepoProvider).markAllRead(widget.bookingId, myId);
     } catch (_) {}
   }
 
-  Future<void> _send(String myId) async {
+  Future<void> _send(String myId, {String? imageUrl}) async {
     final content = _text.text.trim();
-    if (content.isEmpty || _sending) return;
+    if (content.isEmpty && imageUrl == null) return;
+    if (_sending) return;
     setState(() => _sending = true);
     try {
-      await ref
-          .read(messageRepoProvider)
-          .send(widget.bookingId, widget.receiverId, content);
+      await ref.read(messageRepoProvider).send(
+            widget.bookingId,
+            widget.receiverId,
+            content.isEmpty ? '📷 Image' : content,
+            imageUrl: imageUrl,
+          );
       _text.clear();
+      setState(() => _showQuickReplies = false);
       _scrollToBottom();
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  Future<void> _pickImage(String myId) async {
+    final picker = ImagePicker();
+    final file = await picker.pickImage(
+        source: ImageSource.gallery, imageQuality: 75);
+    if (file == null) return;
+
+    setState(() => _sending = true);
+    try {
+      final url = await ref
+          .read(storageRepoProvider)
+          .uploadChatImage(File(file.path));
+      await _send(myId, imageUrl: url);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Image failed: $e')));
+      }
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -74,9 +114,45 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         title: const Text('Chat'),
         centerTitle: true,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: Icon(
+              Icons.quickreply_outlined,
+              color: _showQuickReplies ? AppColors.violet : null,
+            ),
+            tooltip: 'Quick replies',
+            onPressed: () =>
+                setState(() => _showQuickReplies = !_showQuickReplies),
+          ),
+        ],
       ),
       body: Column(
         children: [
+          // Quick reply chips
+          if (_showQuickReplies)
+            Container(
+              color: context.softSurface,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: _quickReplies
+                    .map((r) => ActionChip(
+                          label: Text(r,
+                              style: const TextStyle(fontSize: 12)),
+                          onPressed: () {
+                            _text.text = r;
+                            setState(() => _showQuickReplies = false);
+                          },
+                          backgroundColor: context.softSurface,
+                          side: BorderSide(
+                              color: AppColors.violetMid),
+                        ))
+                    .toList(),
+              ),
+            ),
+
           Expanded(
             child: StreamBuilder<List<Message>>(
               stream: stream,
@@ -85,12 +161,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 final msgs = snap.data!;
-
-                // Mark incoming as read
                 WidgetsBinding.instance
                     .addPostFrameCallback((_) => _markRead(me));
-
-                // Auto-scroll on new message
                 _scrollToBottom();
 
                 if (msgs.isEmpty) {
@@ -113,12 +185,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     final mine = m.senderId == me;
                     final showDate = i == 0 ||
                         !_sameDay(msgs[i - 1].createdAt, m.createdAt);
-
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        if (showDate)
-                          _DateDivider(date: m.createdAt),
+                        if (showDate) _DateDivider(date: m.createdAt),
                         _Bubble(
                           message: m,
                           isMine: mine,
@@ -149,6 +219,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ],
               ),
               child: Row(children: [
+                IconButton(
+                  onPressed: _sending ? null : () => _pickImage(me),
+                  icon: const Icon(Icons.image_outlined),
+                  color: AppColors.violet,
+                  tooltip: 'Send image',
+                ),
                 Expanded(
                   child: TextField(
                     controller: _text,
@@ -223,10 +299,8 @@ class _DateDivider extends StatelessWidget {
         const Expanded(child: Divider()),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: Text(
-            label,
-            style: const TextStyle(fontSize: 11, color: AppColors.slate),
-          ),
+          child: Text(label,
+              style: const TextStyle(fontSize: 11, color: AppColors.slate)),
         ),
         const Expanded(child: Divider()),
       ]),
@@ -246,11 +320,14 @@ class _Bubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasImage = message.imageUrl != null;
+    final hasText = message.content.isNotEmpty &&
+        message.content != '📷 Image';
+
     return Align(
       alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 3),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         constraints:
             BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
         decoration: BoxDecoration(
@@ -262,40 +339,91 @@ class _Bubble extends StatelessWidget {
             bottomRight: Radius.circular(isMine ? 4 : 18),
           ),
         ),
+        clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(
-              message.content,
-              style: TextStyle(
-                  color: isMine ? Colors.white : Colors.black87,
-                  fontSize: 14),
-            ),
-            const SizedBox(height: 3),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  Fmt.dateTime(message.createdAt),
-                  style: TextStyle(
-                      fontSize: 10,
-                      color: isMine ? Colors.white70 : Colors.black45),
+            if (hasImage)
+              GestureDetector(
+                onTap: () => _openImage(context, message.imageUrl!),
+                child: CachedNetworkImage(
+                  imageUrl: message.imageUrl!,
+                  width: double.infinity,
+                  height: 180,
+                  fit: BoxFit.cover,
+                  placeholder: (c, u) => Container(
+                    height: 180,
+                    color: isMine
+                        ? AppColors.violetDeep
+                        : Colors.grey.shade300,
+                    child: const Center(
+                        child: CircularProgressIndicator(strokeWidth: 2)),
+                  ),
+                  errorWidget: (c, u, e) => Container(
+                    height: 60,
+                    color: Colors.grey.shade200,
+                    child: const Icon(Icons.broken_image_outlined),
+                  ),
                 ),
-                if (showReadReceipt) ...[
-                  const SizedBox(width: 4),
-                  Icon(
-                    message.isRead ? Icons.done_all : Icons.done,
-                    size: 12,
-                    color: message.isRead
-                        ? Colors.white
-                        : Colors.white60,
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (hasText)
+                    Text(
+                      message.content,
+                      style: TextStyle(
+                          color: isMine ? Colors.white : Colors.black87,
+                          fontSize: 14),
+                    ),
+                  const SizedBox(height: 3),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        Fmt.dateTime(message.createdAt),
+                        style: TextStyle(
+                            fontSize: 10,
+                            color: isMine ? Colors.white70 : Colors.black45),
+                      ),
+                      if (showReadReceipt) ...[
+                        const SizedBox(width: 4),
+                        Icon(
+                          message.isRead ? Icons.done_all : Icons.done,
+                          size: 12,
+                          color: message.isRead
+                              ? Colors.white
+                              : Colors.white60,
+                        ),
+                      ],
+                    ],
                   ),
                 ],
-              ],
+              ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  void _openImage(BuildContext context, String url) {
+    Navigator.of(context).push(PageRouteBuilder(
+      opaque: false,
+      barrierColor: Colors.black87,
+      pageBuilder: (ctx, a, b) => GestureDetector(
+        onTap: () => Navigator.of(ctx).pop(),
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          body: Center(
+            child: InteractiveViewer(
+              child: CachedNetworkImage(imageUrl: url, fit: BoxFit.contain),
+            ),
+          ),
+        ),
+      ),
+    ));
   }
 }

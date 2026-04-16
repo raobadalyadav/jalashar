@@ -85,7 +85,7 @@ class ProfileTab extends ConsumerWidget {
                                             imageUrl: u!.avatarUrl!,
                                             fit: BoxFit.cover,
                                             placeholder: (_, __) => Container(
-                                              color: AppColors.violetMid,
+                                              color: context.midSurface,
                                             ),
                                           )
                                         : Container(

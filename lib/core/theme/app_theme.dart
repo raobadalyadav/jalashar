@@ -54,6 +54,19 @@ class AppColors {
   );
 }
 
+/// Dark-mode-aware color helpers. Use instead of hard-coded AppColors.violetSoft/Mid.
+extension ThemeX on BuildContext {
+  bool get isDark => Theme.of(this).brightness == Brightness.dark;
+  /// Light surface tint — violet-soft in light, dark-purple in dark
+  Color get softSurface =>
+      isDark ? const Color(0xFF1E1B3A) : AppColors.violetSoft;
+  /// Mid surface — violet-mid in light, slightly lighter dark-purple in dark
+  Color get midSurface =>
+      isDark ? const Color(0xFF252244) : AppColors.violetMid;
+  Color get onSoftSurface =>
+      isDark ? Colors.white : AppColors.charcoal;
+}
+
 class AppTheme {
   static ThemeData get light {
     final scheme = ColorScheme.fromSeed(
@@ -72,9 +85,15 @@ class AppTheme {
     final scheme = ColorScheme.fromSeed(
       seedColor: AppColors.violet,
       brightness: Brightness.dark,
-      primary: Color(0xFFA78BFA),  // lighter violet for dark mode
+      primary: const Color(0xFFA78BFA),
       secondary: AppColors.gold,
-      tertiary: Color(0xFF8B5CF6),
+      tertiary: const Color(0xFF8B5CF6),
+      surface: const Color(0xFF0F0E17),
+      surfaceContainerHighest: const Color(0xFF1E1B3A),
+      surfaceContainerHigh: const Color(0xFF252244),
+      surfaceContainer: const Color(0xFF1A1830),
+      onSurface: Colors.white,
+      onSurfaceVariant: const Color(0xFFCBC4E8),
     );
     return _base(scheme, Brightness.dark);
   }
@@ -206,12 +225,16 @@ class AppTheme {
       ),
 
       chipTheme: ChipThemeData(
-        backgroundColor: AppColors.violetMid,
+        backgroundColor: isDark ? const Color(0xFF252244) : AppColors.violetMid,
         selectedColor: AppColors.violet,
-        labelStyle: textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w500),
+        labelStyle: textTheme.labelMedium?.copyWith(
+          fontWeight: FontWeight.w500,
+          color: isDark ? Colors.white : null,
+        ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         side: BorderSide.none,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        checkmarkColor: Colors.white,
       ),
 
       listTileTheme: ListTileThemeData(
@@ -233,10 +256,10 @@ class AppTheme {
         shape: CircleBorder(),
       ),
 
-      progressIndicatorTheme: const ProgressIndicatorThemeData(
+      progressIndicatorTheme: ProgressIndicatorThemeData(
         color: AppColors.violet,
-        linearTrackColor: AppColors.violetMid,
-        circularTrackColor: AppColors.violetMid,
+        linearTrackColor: isDark ? const Color(0xFF252244) : AppColors.violetMid,
+        circularTrackColor: isDark ? const Color(0xFF252244) : AppColors.violetMid,
       ),
 
       sliderTheme: SliderThemeData(
@@ -291,10 +314,11 @@ class AppTheme {
       ),
 
       dialogTheme: DialogThemeData(
+        backgroundColor: isDark ? const Color(0xFF1A1830) : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         titleTextStyle: textTheme.titleLarge?.copyWith(
           fontWeight: FontWeight.w700,
-          color: AppColors.charcoal,
+          color: isDark ? Colors.white : AppColors.charcoal,
         ),
       ),
 

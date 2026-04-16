@@ -65,7 +65,6 @@ class _SplashScreenState extends State<SplashScreen> {
           final role = UserRole.fromString(roleStr);
           target = switch (role) {
             UserRole.vendor => '/vendor',
-            UserRole.admin || UserRole.superAdmin || UserRole.support => '/admin',
             _ => '/home',
           };
         }

@@ -106,12 +106,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         value: Locale('en'), child: Text('English')),
                     DropdownMenuItem(
                         value: Locale('hi'), child: Text('हिन्दी')),
-                    DropdownMenuItem(
-                        value: Locale('gu'), child: Text('ગુજરાતી')),
-                    DropdownMenuItem(
-                        value: Locale('mr'), child: Text('मराठी')),
-                    DropdownMenuItem(
-                        value: Locale('ta'), child: Text('தமிழ்')),
                   ],
                   onChanged: (l) async {
                     if (l == null) return;
@@ -270,9 +264,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   String _localeName(Locale l) => switch (l.languageCode) {
         'hi' => 'हिन्दी',
-        'gu' => 'ગુજરાતી',
-        'mr' => 'मराठी',
-        'ta' => 'தமிழ்',
         _ => 'English',
       };
 }

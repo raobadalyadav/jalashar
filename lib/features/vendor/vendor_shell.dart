@@ -90,6 +90,7 @@ class _VendorOverview extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final bookings = ref.watch(vendorBookingsProvider);
     final reviews = ref.watch(myVendorReviewsProvider);
+    final viewStats = ref.watch(myVendorViewStatsProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -229,6 +230,35 @@ class _VendorOverview extends ConsumerWidget {
                   ]),
                 ).animate(delay: 200.ms).fadeIn().slideY(begin: 0.1),
 
+                const SizedBox(height: 12),
+
+                // Profile view stats
+                viewStats.when(
+                  data: (stats) => stats == null
+                      ? const SizedBox.shrink()
+                      : Row(children: [
+                          Expanded(
+                            child: _StatTile(
+                              title: '7-Day Views',
+                              value: '${stats.views7d}',
+                              icon: Icons.visibility_outlined,
+                              color: AppColors.info,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _StatTile(
+                              title: '30-Day Views',
+                              value: '${stats.views30d}',
+                              icon: Icons.bar_chart_rounded,
+                              color: AppColors.saffron,
+                            ),
+                          ),
+                        ]).animate(delay: 300.ms).fadeIn().slideY(begin: 0.1),
+                  loading: () => const SizedBox.shrink(),
+                  error: (e, st) => const SizedBox.shrink(),
+                ),
+
                 const SizedBox(height: 20),
 
                 // Rating breakdown
@@ -237,7 +267,7 @@ class _VendorOverview extends ConsumerWidget {
                       ? const SizedBox.shrink()
                       : _RatingBreakdown(reviews: revList),
                   loading: () => const SizedBox.shrink(),
-                  error: (_, __) => const SizedBox.shrink(),
+                  error: (e, st) => const SizedBox.shrink(),
                 ),
 
                 const SizedBox(height: 20),
@@ -503,7 +533,7 @@ class _VendorMessages extends ConsumerWidget {
             child: ListView.separated(
               padding: const EdgeInsets.symmetric(vertical: 8),
               itemCount: list.length,
-              separatorBuilder: (_, __) =>
+              separatorBuilder: (c, i) =>
                   const Divider(height: 1, indent: 72, endIndent: 16),
               itemBuilder: (_, i) {
                 final c = list[i];
@@ -769,7 +799,35 @@ class _BookingCard extends ConsumerWidget {
                 ] else ...[
                   const SizedBox(height: 8),
                   Row(children: [
-                    const Spacer(),
+                    // Mark event complete (for confirmed bookings where event date passed)
+                    if (booking.status == BookingStatus.confirmed &&
+                        !booking.eventDate.isAfter(DateTime.now()))
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: () async {
+                            await ref
+                                .read(bookingRepoProvider)
+                                .updateStatus(booking.id, BookingStatus.completed);
+                            ref.invalidate(vendorBookingsProvider);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Marked as completed! Client will be asked to review.'),
+                                ),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
+                          label: const Text('Mark Complete'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.success,
+                            minimumSize: const Size(0, 40),
+                          ),
+                        ),
+                      ),
+                    if (booking.status == BookingStatus.confirmed &&
+                        !booking.eventDate.isAfter(DateTime.now()))
+                      const SizedBox(width: 8),
                     TextButton.icon(
                       onPressed: () => context.push(
                           '/chat/${booking.id}/${booking.clientId}'),
@@ -798,9 +856,20 @@ class _VendorProfile extends ConsumerStatefulWidget {
 class _VendorProfileState extends ConsumerState<_VendorProfile> {
   final _category = TextEditingController();
   final _bio = TextEditingController();
+  final _tagline = TextEditingController();
   final _city = TextEditingController();
+  final _address = TextEditingController();
   final _price = TextEditingController();
+  final _phone = TextEditingController();
+  final _whatsapp = TextEditingController();
+  final _instagram = TextEditingController();
+  final _youtube = TextEditingController();
+  final _facebook = TextEditingController();
+  final _yearsExp = TextEditingController();
   final List<String> _portfolio = [];
+  List<String> _serviceCities = [];
+  List<String> _languages = [];
+  bool _fullyBooked = false;
   Map<String, dynamic> _meta = {};
   final Map<String, TextEditingController> _metaCtrls = {};
   bool _loading = false;
@@ -819,8 +888,16 @@ class _VendorProfileState extends ConsumerState<_VendorProfile> {
   void dispose() {
     _category.dispose();
     _bio.dispose();
+    _tagline.dispose();
     _city.dispose();
+    _address.dispose();
     _price.dispose();
+    _phone.dispose();
+    _whatsapp.dispose();
+    _instagram.dispose();
+    _youtube.dispose();
+    _facebook.dispose();
+    _yearsExp.dispose();
     for (final c in _metaCtrls.values) {
       c.dispose();
     }
@@ -833,14 +910,47 @@ class _VendorProfileState extends ConsumerState<_VendorProfile> {
       if (vendor != null && mounted) {
         _category.text = vendor.category;
         _bio.text = vendor.bio ?? '';
+        _tagline.text = vendor.tagline ?? '';
         _city.text = vendor.city ?? '';
+        _address.text = vendor.address ?? '';
         _price.text = vendor.basePrice?.toString() ?? '';
+        _phone.text = vendor.phone ?? '';
+        _whatsapp.text = vendor.whatsapp ?? '';
+        _instagram.text = vendor.instagramUrl ?? '';
+        _youtube.text = vendor.youtubeUrl ?? '';
+        _facebook.text = vendor.facebookUrl ?? '';
+        _yearsExp.text = vendor.yearsExperience > 0
+            ? vendor.yearsExperience.toString()
+            : '';
         setState(() {
           _portfolio.addAll(vendor.portfolioUrls);
+          _serviceCities = List<String>.from(vendor.serviceCities);
+          _languages = List<String>.from(vendor.languages);
+          _fullyBooked = vendor.fullyBooked;
           _meta = Map<String, dynamic>.from(vendor.meta);
         });
       }
     } catch (_) {}
+  }
+
+  int _completionPercent() {
+    int filled = 0;
+    const total = 10;
+    if (_category.text.isNotEmpty) filled++;
+    if (_bio.text.isNotEmpty) filled++;
+    if (_city.text.isNotEmpty) filled++;
+    if (_phone.text.isNotEmpty) filled++;
+    if (_price.text.isNotEmpty) filled++;
+    if (_portfolio.isNotEmpty) filled++;
+    if (_address.text.isNotEmpty) filled++;
+    if (_tagline.text.isNotEmpty) filled++;
+    if (_instagram.text.isNotEmpty ||
+        _youtube.text.isNotEmpty ||
+        _facebook.text.isNotEmpty) {
+      filled++;
+    }
+    if (_serviceCities.isNotEmpty) filled++;
+    return (filled / total * 100).round();
   }
 
   TextEditingController _metaCtrl(String key) =>
@@ -886,12 +996,105 @@ class _VendorProfileState extends ConsumerState<_VendorProfile> {
             basePrice: double.tryParse(_price.text) ?? 0,
             portfolioUrls: _portfolio,
             meta: _meta,
+            tagline: _tagline.text.trim(),
+            phone: _phone.text.trim(),
+            whatsapp: _whatsapp.text.trim(),
+            address: _address.text.trim(),
+            yearsExperience: int.tryParse(_yearsExp.text) ?? 0,
+            serviceCities: _serviceCities,
+            languages: _languages,
+            instagramUrl: _instagram.text.trim(),
+            youtubeUrl: _youtube.text.trim(),
+            facebookUrl: _facebook.text.trim(),
+            fullyBooked: _fullyBooked,
           );
       if (mounted) AppSnack.success(context, 'Profile saved successfully');
     } catch (e) {
       if (mounted) AppSnack.error(context, 'Error: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Widget _buildCompletionMeter() {
+    final pct = _completionPercent();
+    final color = pct < 40
+        ? AppColors.danger
+        : pct < 70
+            ? AppColors.warning
+            : AppColors.success;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(Icons.analytics_outlined, color: color, size: 18),
+            const SizedBox(width: 8),
+            Text('Profile Completeness',
+                style: TextStyle(
+                    fontWeight: FontWeight.w700, color: color)),
+            const Spacer(),
+            Text('$pct%',
+                style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                    color: color)),
+          ]),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: pct / 100,
+              minHeight: 8,
+              backgroundColor: color.withValues(alpha: 0.15),
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            pct < 50
+                ? 'Add phone, address, portfolio & social links to attract more clients.'
+                : pct < 80
+                    ? 'Great start! Complete remaining fields to rank higher.'
+                    : 'Excellent profile! You\'re highly visible to clients.',
+            style: TextStyle(fontSize: 12, color: color),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _addCityDialog() async {
+    final ctrl = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Add Service City'),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'e.g. Mumbai, Pune'),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, ctrl.text.trim()),
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+    ctrl.dispose();
+    if (result != null && result.isNotEmpty && !_serviceCities.contains(result)) {
+      setState(() => _serviceCities.add(result));
     }
   }
 
@@ -968,6 +1171,10 @@ class _VendorProfileState extends ConsumerState<_VendorProfile> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
+            // Profile completion meter
+            _buildCompletionMeter(),
+            const SizedBox(height: 16),
+
             // Section: Business Info
             _SectionCard(
               title: 'Business Information',
@@ -975,16 +1182,29 @@ class _VendorProfileState extends ConsumerState<_VendorProfile> {
               children: [
                 TextField(
                   controller: _category,
+                  onChanged: (_) => setState(() {}),
                   decoration: const InputDecoration(
-                    labelText: 'Category',
+                    labelText: 'Category *',
                     hintText: 'photographer, dj, caterer…',
                     prefixIcon: Icon(Icons.category_outlined),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
+                  controller: _tagline,
+                  maxLength: 80,
+                  decoration: const InputDecoration(
+                    labelText: 'Tagline / One-liner',
+                    hintText: 'e.g. Capturing your best moments since 2010',
+                    prefixIcon: Icon(Icons.short_text_rounded),
+                    counterText: '',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
                   controller: _bio,
                   maxLines: 3,
+                  maxLength: 500,
                   decoration: const InputDecoration(
                     labelText: 'About your business',
                     prefixIcon: Icon(Icons.description_outlined),
@@ -992,11 +1212,37 @@ class _VendorProfileState extends ConsumerState<_VendorProfile> {
                   ),
                 ),
                 const SizedBox(height: 12),
+                Row(children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _city,
+                      decoration: const InputDecoration(
+                        labelText: 'Primary City *',
+                        prefixIcon: Icon(Icons.location_city_outlined),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _yearsExp,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Years Experience',
+                        prefixIcon: Icon(Icons.timeline_rounded),
+                      ),
+                    ),
+                  ),
+                ]),
+                const SizedBox(height: 12),
                 TextField(
-                  controller: _city,
+                  controller: _address,
+                  maxLines: 2,
                   decoration: const InputDecoration(
-                    labelText: 'City',
+                    labelText: 'Full Address',
+                    hintText: 'Street, Area, City, PIN',
                     prefixIcon: Icon(Icons.location_on_outlined),
+                    alignLabelWithHint: true,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -1004,10 +1250,161 @@ class _VendorProfileState extends ConsumerState<_VendorProfile> {
                   controller: _price,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
-                    labelText: 'Base Price (₹)',
+                    labelText: 'Starting Price (₹) *',
                     prefixIcon: Icon(Icons.currency_rupee_rounded),
                   ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Section: Contact Info
+            _SectionCard(
+              title: 'Contact Information',
+              icon: Icons.contact_phone_outlined,
+              children: [
+                TextField(
+                  controller: _phone,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'Business Phone *',
+                    prefixIcon: Icon(Icons.phone_outlined),
+                    hintText: '+91 XXXXX XXXXX',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _whatsapp,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'WhatsApp Number',
+                    prefixIcon: Icon(Icons.chat_outlined),
+                    hintText: 'Leave blank if same as phone',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Section: Service Cities
+            _SectionCard(
+              title: 'Service Area',
+              icon: Icons.map_outlined,
+              children: [
+                const Text('Cities you serve:',
+                    style: TextStyle(fontSize: 12, color: AppColors.slate)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    ..._serviceCities.map((city) => Chip(
+                          label: Text(city),
+                          onDeleted: () =>
+                              setState(() => _serviceCities.remove(city)),
+                          deleteIconColor: AppColors.slate,
+                        )),
+                    ActionChip(
+                      avatar: const Icon(Icons.add_rounded, size: 16),
+                      label: const Text('Add City'),
+                      onPressed: () => _addCityDialog(),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Section: Languages
+            _SectionCard(
+              title: 'Languages Spoken',
+              icon: Icons.language_outlined,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: ['Hindi', 'English', 'Marathi', 'Gujarati',
+                      'Tamil', 'Telugu', 'Kannada', 'Bengali', 'Punjabi']
+                      .map((lang) => FilterChip(
+                            label: Text(lang),
+                            selected: _languages.contains(lang),
+                            selectedColor: AppColors.violet.withValues(alpha: 0.15),
+                            checkmarkColor: AppColors.violet,
+                            onSelected: (v) => setState(() {
+                              if (v) {
+                                _languages.add(lang);
+                              } else {
+                                _languages.remove(lang);
+                              }
+                            }),
+                          ))
+                      .toList(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Section: Social Media
+            _SectionCard(
+              title: 'Social Media & Links',
+              icon: Icons.share_outlined,
+              children: [
+                TextField(
+                  controller: _instagram,
+                  decoration: const InputDecoration(
+                    labelText: 'Instagram Profile URL',
+                    prefixIcon: Icon(Icons.camera_alt_outlined),
+                    hintText: 'https://instagram.com/yourprofile',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _youtube,
+                  decoration: const InputDecoration(
+                    labelText: 'YouTube Channel URL',
+                    prefixIcon: Icon(Icons.play_circle_outline_rounded),
+                    hintText: 'https://youtube.com/@yourchannel',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _facebook,
+                  decoration: const InputDecoration(
+                    labelText: 'Facebook Page URL',
+                    prefixIcon: Icon(Icons.facebook_outlined),
+                    hintText: 'https://facebook.com/yourpage',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Availability toggle
+            _SectionCard(
+              title: 'Availability Status',
+              icon: Icons.event_available_outlined,
+              children: [
+                Row(children: [
+                  const Icon(Icons.block_rounded, color: AppColors.danger, size: 18),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text('Mark as Fully Booked',
+                        style: TextStyle(fontWeight: FontWeight.w600)),
+                  ),
+                  Switch.adaptive(
+                    value: _fullyBooked,
+                    activeThumbColor: AppColors.danger,
+                    onChanged: (v) => setState(() => _fullyBooked = v),
+                  ),
+                ]),
+                if (_fullyBooked)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6, left: 28),
+                    child: Text(
+                      'Clients will see you\'re fully booked and cannot send new requests.',
+                      style: TextStyle(fontSize: 12, color: AppColors.danger),
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 16),
@@ -1080,7 +1477,7 @@ class _VendorProfileState extends ConsumerState<_VendorProfile> {
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: _portfolio.length,
-                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                      separatorBuilder: (c, i) => const SizedBox(width: 8),
                       itemBuilder: (_, i) => Stack(
                         children: [
                           ClipRRect(

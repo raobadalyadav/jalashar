@@ -219,7 +219,7 @@ class SupportRepository {
       'subject': subject,
       'message': message,
       'priority': priority,
-      if (bookingId != null) 'booking_id': bookingId,
+      'booking_id': bookingId,
     });
   }
 }
@@ -229,6 +229,32 @@ final supportRepoProvider =
 
 final myTicketsProvider =
     FutureProvider((ref) => ref.watch(supportRepoProvider).listMine());
+
+// ========== SUPPORT TICKET MESSAGES ==========
+class SupportMessageRepository {
+  SupportMessageRepository(this._client);
+  final SupabaseClient _client;
+
+  Stream<List<SupportMessage>> stream(String ticketId) => _client
+      .from('support_ticket_messages')
+      .stream(primaryKey: ['id'])
+      .eq('ticket_id', ticketId)
+      .order('created_at')
+      .map((rows) => rows.map(SupportMessage.fromRow).toList());
+
+  Future<void> send(String ticketId, String body) async {
+    final uid = _client.auth.currentUser!.id;
+    await _client.from('support_ticket_messages').insert({
+      'ticket_id': ticketId,
+      'sender_id': uid,
+      'body': body,
+      'is_admin': false,
+    });
+  }
+}
+
+final supportMsgRepoProvider =
+    Provider((ref) => SupportMessageRepository(ref.watch(supabaseClientProvider)));
 
 // ========== VENDOR AVAILABILITY ==========
 class AvailabilityRepository {

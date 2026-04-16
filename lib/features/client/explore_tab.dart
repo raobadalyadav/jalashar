@@ -53,7 +53,7 @@ class ExploreTab extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               scrollDirection: Axis.horizontal,
               itemCount: _categories.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              separatorBuilder: (c, i) => const SizedBox(width: 8),
               itemBuilder: (_, i) {
                 final (label, slug, icon) = _categories[i];
                 final selected = cat == slug;
@@ -75,7 +75,7 @@ class ExploreTab extends ConsumerWidget {
                           selected ? FontWeight.w700 : FontWeight.w500,
                       fontSize: 12,
                     ),
-                    backgroundColor: AppColors.violetSoft,
+                    backgroundColor: context.softSurface,
                     checkmarkColor: Colors.white,
                     showCheckmark: false,
                   ),
@@ -163,19 +163,19 @@ class _VendorCard extends ConsumerWidget {
                         ? CachedNetworkImage(
                             imageUrl: vendor.avatarUrl!,
                             fit: BoxFit.cover,
-                            placeholder: (_, __) => Container(
-                              color: AppColors.violetMid,
+                            placeholder: (c, u) => Container(
+                              color: context.midSurface,
                               child: const Icon(Icons.storefront_rounded,
                                   color: AppColors.violet, size: 32),
                             ),
-                            errorWidget: (_, __, ___) => Container(
-                              color: AppColors.violetMid,
+                            errorWidget: (c, u, e) => Container(
+                              color: context.midSurface,
                               child: const Icon(Icons.storefront_rounded,
                                   color: AppColors.violet, size: 32),
                             ),
                           )
                         : Container(
-                            color: AppColors.violetMid,
+                            color: context.midSurface,
                             child: const Icon(Icons.storefront_rounded,
                                 color: AppColors.violet, size: 32),
                           ),
@@ -226,7 +226,7 @@ class _VendorCard extends ConsumerWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: AppColors.violetMid,
+                          color: context.midSurface,
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -281,7 +281,7 @@ class _VendorCard extends ConsumerWidget {
                   width: 32,
                   height: 32,
                   decoration: BoxDecoration(
-                    color: inCompare ? AppColors.violet : AppColors.violetSoft,
+                    color: inCompare ? AppColors.violet : context.softSurface,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(

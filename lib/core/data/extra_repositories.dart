@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -18,6 +19,7 @@ class WishlistRepository {
         .select('vendors(*, users(name, avatar_url))')
         .eq('user_id', uid);
     return (rows as List)
+        .where((e) => e['vendors'] != null)
         .map((e) => Vendor.fromRow(e['vendors'] as Map<String, dynamic>))
         .toList();
   }
@@ -108,6 +110,7 @@ class ReviewRepository {
     required String vendorId,
     required int stars,
     String? comment,
+    List<String> photos = const [],
   }) async {
     final uid = _client.auth.currentUser!.id;
     await _client.from('reviews').insert({
@@ -116,6 +119,7 @@ class ReviewRepository {
       'vendor_id': vendorId,
       'stars': stars,
       'comment': comment,
+      'photos': photos,
     });
   }
 }
@@ -157,6 +161,20 @@ class StorageRepository {
     await _client.storage.from('portfolios').upload(path, file);
     return _client.storage.from('portfolios').getPublicUrl(path);
   }
+
+  Future<String> uploadChatImage(File file) async {
+    final uid = _client.auth.currentUser!.id;
+    final path = '$uid/${DateTime.now().millisecondsSinceEpoch}.jpg';
+    await _client.storage.from('chat-images').upload(path, file);
+    return _client.storage.from('chat-images').getPublicUrl(path);
+  }
+
+  Future<String> uploadReviewPhoto(File file) async {
+    final uid = _client.auth.currentUser!.id;
+    final path = '$uid/${DateTime.now().millisecondsSinceEpoch}.jpg';
+    await _client.storage.from('review-photos').upload(path, file);
+    return _client.storage.from('review-photos').getPublicUrl(path);
+  }
 }
 
 final storageRepoProvider =
@@ -175,10 +193,10 @@ class UserRepository {
   }) async {
     final uid = _client.auth.currentUser!.id;
     await _client.from('users').update({
-      if (name != null) 'name': name,
-      if (phone != null) 'phone': phone,
-      if (avatarUrl != null) 'avatar_url': avatarUrl,
-      if (locale != null) 'locale': locale,
+      'name': name,
+      'phone': phone,
+      'avatar_url': avatarUrl,
+      'locale': locale,
       'updated_at': DateTime.now().toIso8601String(),
     }).eq('id', uid);
   }
@@ -186,3 +204,259 @@ class UserRepository {
 
 final userRepoProvider =
     Provider((ref) => UserRepository(ref.watch(supabaseClientProvider)));
+
+// ========== REPORTS ==========
+class ReportRepository {
+  ReportRepository(this._client);
+  final SupabaseClient _client;
+
+  Future<void> submit({
+    required String vendorId,
+    required String reason,
+    String? description,
+  }) async {
+    final uid = _client.auth.currentUser!.id;
+    await _client.from('reports').insert({
+      'reporter_id': uid,
+      'reported_vendor_id': vendorId,
+      'reason': reason,
+      'description': description?.isNotEmpty == true ? description : null,
+    });
+  }
+}
+
+final reportRepoProvider =
+    Provider((ref) => ReportRepository(ref.watch(supabaseClientProvider)));
+
+// ========== ADMIN ==========
+class AdminRepository {
+  AdminRepository(this._client);
+  final SupabaseClient _client;
+
+  Future<List<PlatformUser>> listAllUsers() async {
+    final rows = await _client
+        .from('users')
+        .select()
+        .order('created_at', ascending: false);
+    return (rows as List).map((e) => PlatformUser.fromRow(e)).toList();
+  }
+
+  Future<void> suspendUser(String userId, bool suspended) =>
+      _client.from('users').update({
+        'is_suspended': suspended,
+        'suspended_at': suspended ? DateTime.now().toIso8601String() : null,
+      }).eq('id', userId);
+
+  Future<void> banUser(String userId, String reason) =>
+      _client.from('users').update({
+        'is_banned': true,
+        'ban_reason': reason,
+      }).eq('id', userId);
+
+  Future<void> unbanUser(String userId) =>
+      _client.from('users').update({
+        'is_banned': false,
+        'ban_reason': null,
+      }).eq('id', userId);
+
+  Future<void> setFeatured(String vendorId, bool featured) =>
+      _client.from('vendors').update({'is_featured': featured}).eq('id', vendorId);
+
+  Future<List<Map<String, dynamic>>> listReports() async {
+    final rows = await _client
+        .from('reports')
+        .select()
+        .order('created_at', ascending: false);
+    return (rows as List).cast<Map<String, dynamic>>();
+  }
+
+  Future<void> resolveReport(String reportId) =>
+      _client.from('reports').update({'status': 'resolved'}).eq('id', reportId);
+
+  Future<void> broadcastNotification({
+    required String title,
+    required String body,
+    String? targetRole,
+  }) async {
+    final users = await (targetRole != null
+        ? _client.from('users').select('id').eq('role', targetRole)
+        : _client.from('users').select('id')) as List;
+
+    final notifications = users
+        .map((u) => {
+              'user_id': u['id'],
+              'title': title,
+              'body': body,
+              'type': 'broadcast',
+              'is_read': false,
+            })
+        .toList();
+    if (notifications.isNotEmpty) {
+      await _client.from('notifications').insert(notifications);
+    }
+  }
+
+  Future<Map<String, dynamic>> getStats() async {
+    final users = await _client.from('users').select('role');
+    final vendors = await _client.from('vendors').select('category, city, is_verified');
+    final bookings = await _client.from('bookings').select('status, created_at');
+
+    final userCount = (users as List).length;
+    final clientCount = users.where((u) => u['role'] == 'client').length;
+    final vendorCount = users.where((u) => u['role'] == 'vendor').length;
+    final verifiedVendors = (vendors as List).where((v) => v['is_verified'] == true).length;
+
+    final categoryMap = <String, int>{};
+    for (final v in vendors) {
+      final cat = v['category'] as String? ?? 'Other';
+      categoryMap[cat] = (categoryMap[cat] ?? 0) + 1;
+    }
+
+    final cityMap = <String, int>{};
+    for (final v in vendors) {
+      final city = v['city'] as String? ?? 'Unknown';
+      cityMap[city] = (cityMap[city] ?? 0) + 1;
+    }
+
+    final bookingList = bookings as List;
+    final now = DateTime.now();
+    final last7Days = bookingList.where((b) {
+      final created = DateTime.tryParse(b['created_at'] as String? ?? '');
+      return created != null && now.difference(created).inDays <= 7;
+    }).length;
+
+    return {
+      'userCount': userCount,
+      'clientCount': clientCount,
+      'vendorCount': vendorCount,
+      'verifiedVendors': verifiedVendors,
+      'totalBookings': bookingList.length,
+      'last7DaysBookings': last7Days,
+      'topCategories': categoryMap,
+      'topCities': cityMap,
+    };
+  }
+}
+
+final adminRepoProvider =
+    Provider((ref) => AdminRepository(ref.watch(supabaseClientProvider)));
+
+final adminStatsProvider = FutureProvider<Map<String, dynamic>>(
+    (ref) => ref.watch(adminRepoProvider).getStats());
+
+final allUsersProvider = FutureProvider<List<PlatformUser>>(
+    (ref) => ref.watch(adminRepoProvider).listAllUsers());
+
+final adminReportsProvider = FutureProvider<List<Map<String, dynamic>>>(
+    (ref) => ref.watch(adminRepoProvider).listReports());
+
+// ========== GUEST INVITES ==========
+class GuestInvite {
+  final String id;
+  final String bookingId;
+  final String hostId;
+  final String? eventName;
+  final DateTime? eventDate;
+  final String? venue;
+  final String? message;
+  final String code;
+  final DateTime createdAt;
+
+  const GuestInvite({
+    required this.id,
+    required this.bookingId,
+    required this.hostId,
+    required this.code,
+    required this.createdAt,
+    this.eventName,
+    this.eventDate,
+    this.venue,
+    this.message,
+  });
+
+  factory GuestInvite.fromRow(Map<String, dynamic> r) => GuestInvite(
+        id: r['id'] as String,
+        bookingId: r['booking_id'] as String,
+        hostId: r['host_id'] as String,
+        code: r['code'] as String,
+        createdAt: DateTime.parse(r['created_at'] as String),
+        eventName: r['event_name'] as String?,
+        eventDate: r['event_date'] != null
+            ? DateTime.tryParse(r['event_date'] as String)
+            : null,
+        venue: r['venue'] as String?,
+        message: r['message'] as String?,
+      );
+}
+
+String _randomCode() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  final rng = Random.secure();
+  return List.generate(8, (_) => chars[rng.nextInt(chars.length)]).join();
+}
+
+class GuestInviteRepository {
+  GuestInviteRepository(this._client);
+  final SupabaseClient _client;
+
+  Future<GuestInvite?> getForBooking(String bookingId) async {
+    final row = await _client
+        .from('guest_invites')
+        .select()
+        .eq('booking_id', bookingId)
+        .maybeSingle();
+    return row != null ? GuestInvite.fromRow(row) : null;
+  }
+
+  Future<GuestInvite> create({
+    required String bookingId,
+    required String eventName,
+    required DateTime eventDate,
+    required String venue,
+    String? message,
+  }) async {
+    final uid = _client.auth.currentUser!.id;
+    final row = await _client.from('guest_invites').insert({
+      'booking_id': bookingId,
+      'host_id': uid,
+      'event_name': eventName,
+      'event_date': eventDate.toIso8601String().split('T').first,
+      'venue': venue,
+      'message': message,
+      'code': _randomCode(),
+    }).select().single();
+    return GuestInvite.fromRow(row);
+  }
+}
+
+final guestInviteRepoProvider =
+    Provider((ref) => GuestInviteRepository(ref.watch(supabaseClientProvider)));
+
+// ========== VENDOR VIEW STATS ==========
+class VendorViewStats {
+  final int views7d;
+  final int views30d;
+  const VendorViewStats({required this.views7d, required this.views30d});
+}
+
+final myVendorViewStatsProvider = FutureProvider<VendorViewStats?>((ref) async {
+  final client = ref.watch(supabaseClientProvider);
+  final uid = client.auth.currentUser?.id;
+  if (uid == null) return null;
+  final vendorRow = await client
+      .from('vendors')
+      .select('id')
+      .eq('user_id', uid)
+      .maybeSingle();
+  if (vendorRow == null) return null;
+  final result = await client.rpc(
+    'get_vendor_view_stats',
+    params: {'vendor_uuid': vendorRow['id'] as String},
+  );
+  if (result == null) return const VendorViewStats(views7d: 0, views30d: 0);
+  final row = result is List ? result.first : result;
+  return VendorViewStats(
+    views7d: (row['views_7d'] as num?)?.toInt() ?? 0,
+    views30d: (row['views_30d'] as num?)?.toInt() ?? 0,
+  );
+});

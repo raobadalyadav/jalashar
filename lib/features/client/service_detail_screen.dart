@@ -74,7 +74,7 @@ class ServiceDetailScreen extends StatelessWidget {
                         avatar: const Icon(Icons.schedule,
                             size: 16, color: AppColors.violet),
                         label: Text(service.planningDuration!),
-                        backgroundColor: AppColors.violetSoft,
+                        backgroundColor: context.softSurface,
                       ),
                   ]).animate().fadeIn(duration: 300.ms).slideY(begin: 0.1),
                   const SizedBox(height: 16),
@@ -95,8 +95,8 @@ class ServiceDetailScreen extends StatelessWidget {
                           Container(
                             width: 26,
                             height: 26,
-                            decoration: const BoxDecoration(
-                              color: AppColors.violetSoft,
+                            decoration: BoxDecoration(
+                              color: context.softSurface,
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(Icons.check_rounded,

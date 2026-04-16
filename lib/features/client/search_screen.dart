@@ -10,20 +10,59 @@ import '../../core/theme/app_theme.dart';
 import '../../core/ui/widgets.dart';
 import '../../core/utils/formatters.dart';
 
+enum _SortOption { topRated, priceLow, priceHigh, featured }
+
 final _searchQueryProvider = StateProvider<String>((_) => '');
 final _filterCategoryProvider = StateProvider<String?>((_) => null);
 final _filterCityProvider = StateProvider<String?>((_) => null);
+final _filterEventTypeProvider = StateProvider<String?>((_) => null);
 final _filterMinRatingProvider = StateProvider<double>((_) => 0);
+final _filterMinPriceProvider = StateProvider<double>((_) => 0);
+final _filterMaxPriceProvider = StateProvider<double>((_) => 0);
+final _filterVerifiedOnlyProvider = StateProvider<bool>((_) => false);
+final _sortProvider = StateProvider<_SortOption>((_) => _SortOption.topRated);
+
+const _eventTypes = [
+  'Wedding', 'Engagement', 'Birthday', 'Corporate', 'Anniversary', 'Festival',
+];
 
 final _searchResultsProvider = FutureProvider<List<Vendor>>((ref) async {
   final query = ref.watch(_searchQueryProvider);
   final cat = ref.watch(_filterCategoryProvider);
   final city = ref.watch(_filterCityProvider);
+  ref.watch(_filterEventTypeProvider); // tracked for UI chips
   final minRating = ref.watch(_filterMinRatingProvider);
-  final list = await ref
+  final minPrice = ref.watch(_filterMinPriceProvider);
+  final maxPrice = ref.watch(_filterMaxPriceProvider);
+  final verifiedOnly = ref.watch(_filterVerifiedOnlyProvider);
+  final sort = ref.watch(_sortProvider);
+  var list = await ref
       .watch(vendorRepoProvider)
       .list(category: cat, city: city, query: query);
-  return list.where((v) => v.ratingAvg >= minRating).toList();
+  // eventType filter is UI-only display; Vendor model has no eventTypes field
+  list = list.where((v) => v.ratingAvg >= minRating).toList();
+  if (verifiedOnly) list = list.where((v) => v.isVerified).toList();
+  if (minPrice > 0) {
+    list = list.where((v) => (v.basePrice ?? 0) >= minPrice).toList();
+  }
+  if (maxPrice > 0) {
+    list = list.where((v) => (v.basePrice ?? 0) <= maxPrice).toList();
+  }
+  switch (sort) {
+    case _SortOption.topRated:
+      list.sort((a, b) => b.ratingAvg.compareTo(a.ratingAvg));
+    case _SortOption.priceLow:
+      list.sort((a, b) => (a.basePrice ?? 0).compareTo(b.basePrice ?? 0));
+    case _SortOption.priceHigh:
+      list.sort((a, b) => (b.basePrice ?? 0).compareTo(a.basePrice ?? 0));
+    case _SortOption.featured:
+      list.sort((a, b) {
+        final af = a.isFeatured ? 0 : 1;
+        final bf = b.isFeatured ? 0 : 1;
+        return af.compareTo(bf);
+      });
+  }
+  return list;
 });
 
 class SearchScreen extends ConsumerWidget {
@@ -34,7 +73,15 @@ class SearchScreen extends ConsumerWidget {
     final results = ref.watch(_searchResultsProvider);
     final cat = ref.watch(_filterCategoryProvider);
     final city = ref.watch(_filterCityProvider);
+    final eventType = ref.watch(_filterEventTypeProvider);
     final minRating = ref.watch(_filterMinRatingProvider);
+    final minPrice = ref.watch(_filterMinPriceProvider);
+    final maxPrice = ref.watch(_filterMaxPriceProvider);
+    final verifiedOnly = ref.watch(_filterVerifiedOnlyProvider);
+    final sort = ref.watch(_sortProvider);
+
+    final hasFilters = cat != null || city != null || eventType != null ||
+        minRating > 0 || minPrice > 0 || maxPrice > 0 || verifiedOnly;
 
     return Scaffold(
       appBar: AppBar(
@@ -48,15 +95,36 @@ class SearchScreen extends ConsumerWidget {
               ref.read(_searchQueryProvider.notifier).state = v,
         ),
         actions: [
+          PopupMenuButton<_SortOption>(
+            tooltip: 'Sort',
+            icon: const Icon(Icons.sort_rounded),
+            initialValue: sort,
+            onSelected: (v) => ref.read(_sortProvider.notifier).state = v,
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                  value: _SortOption.topRated,
+                  child: Text('Top Rated')),
+              PopupMenuItem(
+                  value: _SortOption.priceLow,
+                  child: Text('Price: Low to High')),
+              PopupMenuItem(
+                  value: _SortOption.priceHigh,
+                  child: Text('Price: High to Low')),
+              PopupMenuItem(
+                  value: _SortOption.featured,
+                  child: Text('Featured First')),
+            ],
+          ),
           IconButton(
-            icon: const Icon(Icons.tune),
+            icon: Icon(Icons.tune,
+                color: hasFilters ? AppColors.violet : null),
             onPressed: () => _showFilters(context, ref),
           ),
         ],
       ),
       body: Column(
         children: [
-          if (cat != null || city != null || minRating > 0)
+          if (hasFilters)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               alignment: Alignment.centerLeft,
@@ -80,6 +148,31 @@ class SearchScreen extends ConsumerWidget {
                       label: Text('${minRating.toStringAsFixed(1)}★+'),
                       onDeleted: () =>
                           ref.read(_filterMinRatingProvider.notifier).state = 0,
+                    ),
+                  if (eventType != null)
+                    Chip(
+                      label: Text(eventType),
+                      onDeleted: () => ref
+                          .read(_filterEventTypeProvider.notifier)
+                          .state = null,
+                    ),
+                  if (minPrice > 0 || maxPrice > 0)
+                    Chip(
+                      label: Text(maxPrice > 0
+                          ? '₹${minPrice.toInt()}–₹${maxPrice.toInt()}'
+                          : '₹${minPrice.toInt()}+'),
+                      onDeleted: () {
+                        ref.read(_filterMinPriceProvider.notifier).state = 0;
+                        ref.read(_filterMaxPriceProvider.notifier).state = 0;
+                      },
+                    ),
+                  if (verifiedOnly)
+                    Chip(
+                      avatar: const Icon(Icons.verified, size: 14),
+                      label: const Text('Verified only'),
+                      onDeleted: () => ref
+                          .read(_filterVerifiedOnlyProvider.notifier)
+                          .state = false,
                     ),
                 ],
               ),
@@ -119,21 +212,79 @@ class SearchScreen extends ConsumerWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) => Consumer(builder: (_, ref, __) {
+      builder: (sheetCtx) => Consumer(builder: (ctx, ref, child) {
         final cats = ref.watch(categoriesProvider);
         final cities = ref.watch(citiesProvider);
         final minRating = ref.watch(_filterMinRatingProvider);
-        return Padding(
+        final minPrice = ref.watch(_filterMinPriceProvider);
+        final maxPrice = ref.watch(_filterMaxPriceProvider);
+        final selEventType = ref.watch(_filterEventTypeProvider);
+        return SingleChildScrollView(
           padding: EdgeInsets.only(
             left: 20, right: 20, top: 20,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Filters', style: Theme.of(context).textTheme.titleLarge),
+              Text('Filters', style: Theme.of(ctx).textTheme.titleLarge),
               const SizedBox(height: 16),
+
+              // Event type
+              const Text('Event Type',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: _eventTypes
+                    .map((t) => FilterChip(
+                          label: Text(t),
+                          selected: selEventType == t,
+                          onSelected: (s) => ref
+                              .read(_filterEventTypeProvider.notifier)
+                              .state = s ? t : null,
+                        ))
+                    .toList(),
+              ),
+              const SizedBox(height: 16),
+
+              // Budget range
+              const Text('Budget Range',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              RangeSlider(
+                values: RangeValues(minPrice, maxPrice > 0 ? maxPrice : 200000),
+                min: 0,
+                max: 200000,
+                divisions: 40,
+                labels: RangeLabels(
+                  minPrice > 0 ? '₹${(minPrice / 1000).toStringAsFixed(0)}K' : 'Any',
+                  maxPrice > 0 ? '₹${(maxPrice / 1000).toStringAsFixed(0)}K' : 'Any',
+                ),
+                activeColor: AppColors.violet,
+                onChanged: (r) {
+                  ref.read(_filterMinPriceProvider.notifier).state = r.start;
+                  ref.read(_filterMaxPriceProvider.notifier).state =
+                      r.end >= 200000 ? 0 : r.end;
+                },
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    minPrice > 0 ? '₹${minPrice.toInt()}' : 'No min',
+                    style: const TextStyle(fontSize: 12, color: AppColors.slate),
+                  ),
+                  Text(
+                    maxPrice > 0 ? '₹${maxPrice.toInt()}' : 'No max',
+                    style: const TextStyle(fontSize: 12, color: AppColors.slate),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
               const Text('Category', style: TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               cats.maybeWhen(
@@ -183,6 +334,20 @@ class SearchScreen extends ConsumerWidget {
                 max: 5,
                 divisions: 10,
                 label: minRating.toStringAsFixed(1),
+                activeColor: AppColors.violet,
+              ),
+              const SizedBox(height: 8),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Verified vendors only',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle:
+                    const Text('Show only platform-verified vendors'),
+                value: ref.watch(_filterVerifiedOnlyProvider),
+                activeThumbColor: AppColors.violet,
+                onChanged: (v) => ref
+                    .read(_filterVerifiedOnlyProvider.notifier)
+                    .state = v,
               ),
               const SizedBox(height: 8),
               Row(children: [
@@ -191,7 +356,11 @@ class SearchScreen extends ConsumerWidget {
                     onPressed: () {
                       ref.read(_filterCategoryProvider.notifier).state = null;
                       ref.read(_filterCityProvider.notifier).state = null;
+                      ref.read(_filterEventTypeProvider.notifier).state = null;
                       ref.read(_filterMinRatingProvider.notifier).state = 0;
+                      ref.read(_filterMinPriceProvider.notifier).state = 0;
+                      ref.read(_filterMaxPriceProvider.notifier).state = 0;
+                      ref.read(_filterVerifiedOnlyProvider.notifier).state = false;
                     },
                     child: const Text('Clear'),
                   ),
@@ -199,7 +368,7 @@ class SearchScreen extends ConsumerWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: FilledButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => Navigator.pop(ctx),
                     child: const Text('Apply'),
                   ),
                 ),
@@ -215,6 +384,7 @@ class SearchScreen extends ConsumerWidget {
 class _ResultCard extends StatelessWidget {
   const _ResultCard({required this.vendor});
   final Vendor vendor;
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -225,46 +395,124 @@ class _ResultCard extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: vendor.avatarUrl != null
-                  ? CachedNetworkImage(
-                      imageUrl: vendor.avatarUrl!,
-                      width: 60,
-                      height: 60,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(
-                          width: 60, height: 60, color: AppColors.violetMid),
-                    )
-                  : Container(
-                      width: 60,
-                      height: 60,
-                      decoration: const BoxDecoration(gradient: AppColors.brandGradient),
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: vendor.avatarUrl != null
+                      ? CachedNetworkImage(
+                          imageUrl: vendor.avatarUrl!,
+                          width: 64,
+                          height: 64,
+                          fit: BoxFit.cover,
+                          placeholder: (c, u) => Container(
+                              width: 64, height: 64, color: AppColors.violetMid),
+                        )
+                      : Container(
+                          width: 64,
+                          height: 64,
+                          decoration: const BoxDecoration(
+                              gradient: AppColors.brandGradient),
+                          alignment: Alignment.center,
+                          child: Text(
+                            (vendor.name ?? 'V')[0].toUpperCase(),
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 26,
+                                fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                ),
+                if (vendor.isFeatured)
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
                       alignment: Alignment.center,
-                      child: Text(
-                        (vendor.name ?? 'V')[0].toUpperCase(),
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.w800),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [AppColors.violetDeep, AppColors.violet],
+                        ),
+                        borderRadius: const BorderRadius.vertical(
+                            bottom: Radius.circular(12)),
                       ),
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: const Text('FEATURED',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 8,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.5)),
                     ),
+                  ),
+              ],
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(vendor.name ?? 'Vendor',
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                  Row(children: [
+                    Expanded(
+                      child: Text(vendor.name ?? 'Vendor',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w600, fontSize: 15)),
+                    ),
+                    if (vendor.isVerified)
+                      const Tooltip(
+                        message: 'Verified vendor',
+                        child: Icon(Icons.verified,
+                            color: Colors.blue, size: 16),
+                      ),
+                    if (vendor.fullyBooked)
+                      Container(
+                        margin: const EdgeInsets.only(left: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.danger.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text('Full',
+                            style: TextStyle(
+                                color: AppColors.danger,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700)),
+                      ),
+                  ]),
                   const SizedBox(height: 2),
-                  Text('${vendor.category}${vendor.city != null ? ' · ${vendor.city}' : ''}',
-                      style: const TextStyle(color: AppColors.slate, fontSize: 13)),
+                  Text(
+                      '${vendor.category}${vendor.city != null ? ' · ${vendor.city}' : ''}',
+                      style: const TextStyle(
+                          color: AppColors.slate, fontSize: 13)),
+                  if (vendor.tagline != null &&
+                      vendor.tagline!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        vendor.tagline!,
+                        style: const TextStyle(
+                            color: AppColors.violet,
+                            fontSize: 11,
+                            fontStyle: FontStyle.italic),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                   const SizedBox(height: 6),
                   Row(children: [
-                    const Icon(Icons.star_rounded, color: AppColors.gold, size: 14),
+                    const Icon(Icons.star_rounded,
+                        color: AppColors.gold, size: 14),
                     Text(' ${vendor.ratingAvg.toStringAsFixed(1)}',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600)),
+                    if (vendor.eventsCount > 0) ...[
+                      const SizedBox(width: 8),
+                      Text('${vendor.eventsCount} events',
+                          style: const TextStyle(
+                              color: AppColors.slate, fontSize: 11)),
+                    ],
                     if (vendor.basePrice != null) ...[
                       const Spacer(),
                       Text(Fmt.currency(vendor.basePrice!),

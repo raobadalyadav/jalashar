@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/data/content_repositories.dart';
 import '../../core/data/extra_repositories.dart';
@@ -23,12 +25,141 @@ class VendorDetailScreen extends ConsumerStatefulWidget {
 
 class _VendorDetailScreenState extends ConsumerState<VendorDetailScreen> {
   bool _saved = false;
-  bool _toggling = false;
 
   @override
   void initState() {
     super.initState();
     _loadSaved();
+    _trackView();
+  }
+
+  Future<void> _trackView() async {
+    await ref.read(vendorRepoProvider).incrementProfileViews(widget.vendor.id);
+  }
+
+  Future<void> _launchUrl(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _callVendor() async {
+    final phone = widget.vendor.phone;
+    if (phone == null || phone.isEmpty) return;
+    await _launchUrl('tel:$phone');
+  }
+
+  Future<void> _whatsappVendor() async {
+    final number = (widget.vendor.whatsapp?.isNotEmpty == true)
+        ? widget.vendor.whatsapp!
+        : widget.vendor.phone ?? '';
+    if (number.isEmpty) return;
+    final clean = number.replaceAll(RegExp(r'[^0-9+]'), '');
+    await _launchUrl('https://wa.me/$clean');
+  }
+
+  Future<void> _shareProfile() async {
+    final name = widget.vendor.name ?? 'Vendor';
+    final category = widget.vendor.category;
+    await Share.share(
+      'Check out $name ($category) on Jalashar!\nhttps://jalashar.in/vendor/${widget.vendor.id}',
+    );
+  }
+
+  Future<void> _reportVendor() async {
+    final reasons = [
+      'Fake profile',
+      'Inappropriate content',
+      'Wrong information',
+      'Rude behavior',
+      'No-show / scam',
+      'Other',
+    ];
+    String? selectedReason;
+    final descCtrl = TextEditingController();
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setSt) => Container(
+          padding: EdgeInsets.only(
+            left: 20, right: 20, top: 20,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+          ),
+          decoration: BoxDecoration(
+            color: Theme.of(ctx).scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Report Vendor',
+                  style: TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 4),
+              Text('Help us keep the platform safe',
+                  style: TextStyle(color: AppColors.slate, fontSize: 13)),
+              const SizedBox(height: 16),
+              ...reasons.map((r) => RadioListTile<String>(
+                    value: r,
+                    groupValue: selectedReason,
+                    title: Text(r),
+                    activeColor: AppColors.violet,
+                    onChanged: (v) => setSt(() => selectedReason = v),
+                    dense: true,
+                  )),
+              const SizedBox(height: 8),
+              TextField(
+                controller: descCtrl,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Additional details (optional)',
+                  hintText: 'Describe what happened',
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.danger),
+                    onPressed: selectedReason == null
+                        ? null
+                        : () async {
+                            await ref.read(reportRepoProvider).submit(
+                                  vendorId: widget.vendor.id,
+                                  reason: selectedReason!,
+                                  description: descCtrl.text.trim(),
+                                );
+                            descCtrl.dispose();
+                            if (ctx.mounted) {
+                              Navigator.pop(ctx);
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                const SnackBar(
+                                    content: Text(
+                                        'Report submitted. Thank you.')),
+                              );
+                            }
+                          },
+                    child: const Text('Submit Report'),
+                  ),
+                ),
+              ]),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _loadSaved() async {
@@ -54,13 +185,10 @@ class _VendorDetailScreenState extends ConsumerState<VendorDetailScreen> {
   }
 
   Future<void> _toggleWishlist() async {
-    setState(() => _toggling = true);
-    try {
-      await ref.read(wishlistRepoProvider).toggle(widget.vendor.id);
+    await ref.read(wishlistRepoProvider).toggle(widget.vendor.id);
+    if (mounted) {
       setState(() => _saved = !_saved);
       ref.invalidate(wishlistProvider);
-    } finally {
-      if (mounted) setState(() => _toggling = false);
     }
   }
 
@@ -85,6 +213,11 @@ class _VendorDetailScreenState extends ConsumerState<VendorDetailScreen> {
             pinned: true,
             actions: [
               IconButton(
+                tooltip: 'Share profile',
+                onPressed: _shareProfile,
+                icon: const Icon(Icons.share_outlined),
+              ),
+              IconButton(
                 tooltip:
                     inCompare ? 'Remove from compare' : 'Add to compare',
                 onPressed: () {
@@ -103,12 +236,31 @@ class _VendorDetailScreenState extends ConsumerState<VendorDetailScreen> {
                   color: inCompare ? AppColors.violet : null,
                 ),
               ),
-              IconButton(
-                onPressed: _toggling ? null : _toggleWishlist,
-                icon: Icon(
-                  _saved ? Icons.favorite : Icons.favorite_border,
-                  color: _saved ? Colors.red : null,
-                ),
+              PopupMenuButton<String>(
+                onSelected: (v) {
+                  if (v == 'wishlist') _toggleWishlist();
+                  if (v == 'report') _reportVendor();
+                },
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                    value: 'wishlist',
+                    child: Row(children: [
+                      Icon(_saved ? Icons.favorite : Icons.favorite_border,
+                          color: _saved ? Colors.red : null, size: 18),
+                      const SizedBox(width: 10),
+                      Text(_saved ? 'Remove from Wishlist' : 'Save to Wishlist'),
+                    ]),
+                  ),
+                  const PopupMenuItem(
+                    value: 'report',
+                    child: Row(children: [
+                      Icon(Icons.flag_outlined, color: AppColors.danger, size: 18),
+                      SizedBox(width: 10),
+                      Text('Report Vendor',
+                          style: TextStyle(color: AppColors.danger)),
+                    ]),
+                  ),
+                ],
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(
@@ -120,7 +272,7 @@ class _VendorDetailScreenState extends ConsumerState<VendorDetailScreen> {
                     CachedNetworkImage(
                       imageUrl: vendor.portfolioUrls.first,
                       fit: BoxFit.cover,
-                      errorWidget: (_, __, _e) => Container(
+                      errorWidget: (c, u, e) => Container(
                         decoration: const BoxDecoration(
                             gradient: AppColors.heroGradient),
                       ),
@@ -206,15 +358,178 @@ class _VendorDetailScreenState extends ConsumerState<VendorDetailScreen> {
 
                   const SizedBox(height: 20),
 
+                  // ── Fully Booked Banner ────────────────────────────────
+                  if (vendor.fullyBooked) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.danger.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                            color: AppColors.danger.withValues(alpha: 0.4)),
+                      ),
+                      child: const Row(children: [
+                        Icon(Icons.event_busy_rounded,
+                            color: AppColors.danger, size: 18),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'This vendor is fully booked at the moment. Check back later or contact them directly.',
+                            style: TextStyle(
+                                color: AppColors.danger, fontSize: 13),
+                          ),
+                        ),
+                      ]),
+                    ).animate().fadeIn(delay: 90.ms),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // ── Stats Row ──────────────────────────────────────────
+                  if (vendor.yearsExperience > 0 ||
+                      vendor.eventsCount > 0 ||
+                      vendor.profileViews > 0) ...[
+                    Row(children: [
+                      if (vendor.yearsExperience > 0)
+                        _StatChip(
+                          icon: Icons.workspace_premium_outlined,
+                          label: '${vendor.yearsExperience}+ yrs',
+                        ),
+                      if (vendor.eventsCount > 0) ...[
+                        const SizedBox(width: 8),
+                        _StatChip(
+                          icon: Icons.celebration_outlined,
+                          label: '${vendor.eventsCount} events',
+                        ),
+                      ],
+                      if (vendor.profileViews > 0) ...[
+                        const SizedBox(width: 8),
+                        _StatChip(
+                          icon: Icons.visibility_outlined,
+                          label: '${vendor.profileViews} views',
+                        ),
+                      ],
+                    ]).animate().fadeIn(delay: 95.ms),
+                    const SizedBox(height: 16),
+                  ],
+
                   // ── About ──────────────────────────────────────────────
                   _SectionHeader(
                       title: 'About',
                       icon: Icons.person_outline_rounded),
                   const SizedBox(height: 8),
+                  if (vendor.tagline != null && vendor.tagline!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Text(
+                        '"${vendor.tagline}"',
+                        style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.violet,
+                            fontStyle: FontStyle.italic,
+                            fontWeight: FontWeight.w500),
+                      ),
+                    ),
                   Text(
                     vendor.bio ?? 'No description available.',
                     style: const TextStyle(height: 1.6),
                   ).animate().fadeIn(delay: 100.ms),
+
+                  // ── Contact ────────────────────────────────────────────
+                  if ((vendor.phone?.isNotEmpty == true) ||
+                      (vendor.whatsapp?.isNotEmpty == true)) ...[
+                    const SizedBox(height: 20),
+                    _SectionHeader(
+                        title: 'Contact',
+                        icon: Icons.contacts_outlined),
+                    const SizedBox(height: 10),
+                    Row(children: [
+                      if (vendor.phone?.isNotEmpty == true)
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _callVendor,
+                            icon: const Icon(Icons.phone_outlined, size: 18),
+                            label: Text(vendor.phone!),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.success,
+                              side: const BorderSide(
+                                  color: AppColors.success, width: 1.2),
+                            ),
+                          ),
+                        ),
+                      if (vendor.phone?.isNotEmpty == true &&
+                          (vendor.whatsapp?.isNotEmpty == true ||
+                              vendor.phone?.isNotEmpty == true))
+                        const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _whatsappVendor,
+                          icon: const Icon(Icons.chat_outlined, size: 18),
+                          label: const Text('WhatsApp'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF25D366),
+                            side: const BorderSide(
+                                color: Color(0xFF25D366), width: 1.2),
+                          ),
+                        ),
+                      ),
+                    ]).animate().fadeIn(delay: 110.ms),
+                  ],
+
+                  // ── Social Links ───────────────────────────────────────
+                  if ((vendor.instagramUrl?.isNotEmpty == true) ||
+                      (vendor.youtubeUrl?.isNotEmpty == true) ||
+                      (vendor.facebookUrl?.isNotEmpty == true)) ...[
+                    const SizedBox(height: 16),
+                    Row(children: [
+                      const Text('Find us on:',
+                          style: TextStyle(
+                              color: AppColors.slate, fontSize: 13)),
+                      const SizedBox(width: 12),
+                      if (vendor.instagramUrl?.isNotEmpty == true)
+                        _SocialIconButton(
+                          icon: Icons.camera_alt_outlined,
+                          color: const Color(0xFFE1306C),
+                          tooltip: 'Instagram',
+                          onTap: () => _launchUrl(vendor.instagramUrl!),
+                        ),
+                      if (vendor.youtubeUrl?.isNotEmpty == true)
+                        _SocialIconButton(
+                          icon: Icons.play_circle_outline_rounded,
+                          color: const Color(0xFFFF0000),
+                          tooltip: 'YouTube',
+                          onTap: () => _launchUrl(vendor.youtubeUrl!),
+                        ),
+                      if (vendor.facebookUrl?.isNotEmpty == true)
+                        _SocialIconButton(
+                          icon: Icons.facebook_outlined,
+                          color: const Color(0xFF1877F2),
+                          tooltip: 'Facebook',
+                          onTap: () => _launchUrl(vendor.facebookUrl!),
+                        ),
+                    ]).animate().fadeIn(delay: 115.ms),
+                  ],
+
+                  // ── Service Cities ─────────────────────────────────────
+                  if (vendor.serviceCities.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    _SectionHeader(
+                        title: 'Service Areas',
+                        icon: Icons.map_outlined),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: vendor.serviceCities
+                          .map((city) => Chip(
+                                avatar: const Icon(Icons.location_on,
+                                    size: 14, color: AppColors.violet),
+                                label: Text(city),
+                                side: BorderSide.none,
+                                visualDensity: VisualDensity.compact,
+                              ))
+                          .toList(),
+                    ).animate().fadeIn(delay: 120.ms),
+                  ],
 
                   // ── Specializations ────────────────────────────────────
                   if (vendor.meta.isNotEmpty &&
@@ -243,7 +558,7 @@ class _VendorDetailScreenState extends ConsumerState<VendorDetailScreen> {
                         ? Container(
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: AppColors.violetSoft,
+                              color: context.softSurface,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Row(children: [
@@ -349,6 +664,70 @@ class _VendorDetailScreenState extends ConsumerState<VendorDetailScreen> {
   }
 }
 
+// ── Stat Chip ─────────────────────────────────────────────────────────────────
+
+class _StatChip extends StatelessWidget {
+  const _StatChip({required this.icon, required this.label});
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: context.softSurface,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 14, color: AppColors.violet),
+        const SizedBox(width: 5),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.charcoal)),
+      ]),
+    );
+  }
+}
+
+// ── Social Icon Button ────────────────────────────────────────────────────────
+
+class _SocialIconButton extends StatelessWidget {
+  const _SocialIconButton(
+      {required this.icon,
+      required this.color,
+      required this.tooltip,
+      required this.onTap});
+  final IconData icon;
+  final Color color;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Tooltip(
+        message: tooltip,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // ── Section Header ────────────────────────────────────────────────────────────
 
 class _SectionHeader extends StatelessWidget {
@@ -400,7 +779,7 @@ class _SpecializationsView extends StatelessWidget {
 
     return Card(
       elevation: 0,
-      color: AppColors.violetSoft,
+      color: context.softSurface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -619,7 +998,7 @@ class _PortfolioGrid extends StatelessWidget {
     Navigator.of(context).push(PageRouteBuilder(
       opaque: false,
       barrierColor: Colors.black87,
-      pageBuilder: (_, _a, _b) =>
+      pageBuilder: (ctx, a, b) =>
           _LightboxView(urls: urls, initialIndex: initialIndex),
     ));
   }
@@ -642,10 +1021,10 @@ class _PortfolioGrid extends StatelessWidget {
           child: CachedNetworkImage(
             imageUrl: urls[i],
             fit: BoxFit.cover,
-            placeholder: (_, _p) =>
-                Container(color: AppColors.violetSoft),
-            errorWidget: (_, _p, _e) => Container(
-              color: AppColors.violetSoft,
+            placeholder: (c, u) =>
+                Container(color: c.softSurface),
+            errorWidget: (c, u, e) => Container(
+              color: c.softSurface,
               child: const Icon(Icons.broken_image_outlined,
                   color: AppColors.slate),
             ),
@@ -763,7 +1142,7 @@ class _MiniAvailabilityCalendar extends StatelessWidget {
 
     return Card(
       elevation: 0,
-      color: AppColors.violetSoft,
+      color: context.softSurface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: Padding(
         padding: const EdgeInsets.all(14),

@@ -74,13 +74,29 @@ class Vendor {
   final String userId;
   final String category;
   final String? bio;
+  final String? tagline;
   final String? city;
+  final String? address;
+  final double? lat;
+  final double? lng;
   final double? basePrice;
   final bool isVerified;
+  final bool isFeatured;
+  final bool fullyBooked;
   final double ratingAvg;
+  final int eventsCount;
+  final int yearsExperience;
+  final int profileViews;
   final List<String> portfolioUrls;
+  final List<String> serviceCities;
+  final List<String> languages;
   final String? name;
   final String? avatarUrl;
+  final String? phone;
+  final String? whatsapp;
+  final String? instagramUrl;
+  final String? youtubeUrl;
+  final String? facebookUrl;
   final Map<String, dynamic> meta;
 
   const Vendor({
@@ -90,11 +106,27 @@ class Vendor {
     required this.isVerified,
     required this.ratingAvg,
     this.bio,
+    this.tagline,
     this.city,
+    this.address,
+    this.lat,
+    this.lng,
     this.basePrice,
+    this.isFeatured = false,
+    this.fullyBooked = false,
+    this.eventsCount = 0,
+    this.yearsExperience = 0,
+    this.profileViews = 0,
     this.portfolioUrls = const [],
+    this.serviceCities = const [],
+    this.languages = const [],
     this.name,
     this.avatarUrl,
+    this.phone,
+    this.whatsapp,
+    this.instagramUrl,
+    this.youtubeUrl,
+    this.facebookUrl,
     this.meta = const {},
   });
 
@@ -105,17 +137,65 @@ class Vendor {
       userId: r['user_id'] as String,
       category: r['category'] as String,
       bio: r['bio'] as String?,
+      tagline: r['tagline'] as String?,
       city: r['city'] as String?,
+      address: r['address'] as String?,
+      lat: (r['lat'] as num?)?.toDouble(),
+      lng: (r['lng'] as num?)?.toDouble(),
       basePrice: (r['base_price'] as num?)?.toDouble(),
       isVerified: (r['is_verified'] as bool?) ?? false,
+      isFeatured: (r['is_featured'] as bool?) ?? false,
+      fullyBooked: (r['fully_booked'] as bool?) ?? false,
       ratingAvg: ((r['rating_avg'] as num?) ?? 0).toDouble(),
+      eventsCount: (r['events_count'] as int?) ?? 0,
+      yearsExperience: (r['years_experience'] as int?) ?? 0,
+      profileViews: (r['profile_views'] as int?) ?? 0,
       portfolioUrls:
           (r['portfolio_urls'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+      serviceCities:
+          (r['service_cities'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+      languages:
+          (r['languages'] as List?)?.map((e) => e.toString()).toList() ?? const [],
       name: user?['name'] as String?,
       avatarUrl: user?['avatar_url'] as String?,
+      phone: r['phone'] as String?,
+      whatsapp: r['whatsapp'] as String?,
+      instagramUrl: r['instagram_url'] as String?,
+      youtubeUrl: r['youtube_url'] as String?,
+      facebookUrl: r['facebook_url'] as String?,
       meta: (r['meta'] as Map<String, dynamic>?) ?? const {},
     );
   }
+}
+
+class Report {
+  final String id;
+  final String reporterId;
+  final String reportedVendorId;
+  final String reason;
+  final String? description;
+  final String status;
+  final DateTime createdAt;
+
+  const Report({
+    required this.id,
+    required this.reporterId,
+    required this.reportedVendorId,
+    required this.reason,
+    required this.status,
+    required this.createdAt,
+    this.description,
+  });
+
+  factory Report.fromRow(Map<String, dynamic> r) => Report(
+        id: r['id'] as String,
+        reporterId: r['reporter_id'] as String,
+        reportedVendorId: r['reported_vendor_id'] as String,
+        reason: r['reason'] as String,
+        description: r['description'] as String?,
+        status: (r['status'] as String?) ?? 'pending',
+        createdAt: DateTime.parse(r['created_at'] as String),
+      );
 }
 
 class VendorPackage {
@@ -199,6 +279,7 @@ class Message {
   final String senderId;
   final String receiverId;
   final String content;
+  final String? imageUrl;
   final bool isRead;
   final DateTime createdAt;
 
@@ -210,6 +291,7 @@ class Message {
     required this.content,
     required this.isRead,
     required this.createdAt,
+    this.imageUrl,
   });
 
   factory Message.fromRow(Map<String, dynamic> r) => Message(
@@ -218,8 +300,45 @@ class Message {
         senderId: r['sender_id'] as String,
         receiverId: r['receiver_id'] as String,
         content: r['content'] as String,
+        imageUrl: r['image_url'] as String?,
         isRead: (r['is_read'] as bool?) ?? false,
         createdAt: DateTime.parse(r['created_at'] as String),
+      );
+}
+
+class PlatformUser {
+  final String id;
+  final String? name;
+  final String? phone;
+  final String? role;
+  final String? city;
+  final String? avatarUrl;
+  final bool isSuspended;
+  final bool isBanned;
+  final String? banReason;
+
+  const PlatformUser({
+    required this.id,
+    this.name,
+    this.phone,
+    this.role,
+    this.city,
+    this.avatarUrl,
+    this.isSuspended = false,
+    this.isBanned = false,
+    this.banReason,
+  });
+
+  factory PlatformUser.fromRow(Map<String, dynamic> r) => PlatformUser(
+        id: r['id'] as String,
+        name: r['name'] as String?,
+        phone: r['phone'] as String?,
+        role: r['role'] as String?,
+        city: r['city'] as String?,
+        avatarUrl: r['avatar_url'] as String?,
+        isSuspended: (r['is_suspended'] as bool?) ?? false,
+        isBanned: (r['is_banned'] as bool?) ?? false,
+        banReason: r['ban_reason'] as String?,
       );
 }
 

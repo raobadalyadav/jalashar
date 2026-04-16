@@ -167,6 +167,31 @@ class SupportTicket {
       );
 }
 
+class SupportMessage {
+  final String id;
+  final String ticketId;
+  final String senderId;
+  final String body;
+  final bool isAdmin;
+  final DateTime createdAt;
+  const SupportMessage({
+    required this.id,
+    required this.ticketId,
+    required this.senderId,
+    required this.body,
+    required this.isAdmin,
+    required this.createdAt,
+  });
+  factory SupportMessage.fromRow(Map<String, dynamic> r) => SupportMessage(
+        id: r['id'] as String,
+        ticketId: r['ticket_id'] as String,
+        senderId: r['sender_id'] as String,
+        body: r['body'] as String,
+        isAdmin: (r['is_admin'] as bool?) ?? false,
+        createdAt: DateTime.parse(r['created_at'] as String),
+      );
+}
+
 class Referral {
   final String id;
   final String code;

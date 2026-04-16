@@ -60,6 +60,18 @@ class VendorRepository {
     required double basePrice,
     required List<String> portfolioUrls,
     Map<String, dynamic> meta = const {},
+    String? tagline,
+    String? phone,
+    String? whatsapp,
+    String? address,
+    int yearsExperience = 0,
+    List<String> serviceCities = const [],
+    List<String> languages = const [],
+    String? instagramUrl,
+    String? youtubeUrl,
+    String? facebookUrl,
+    int maxEventsPerDay = 1,
+    bool fullyBooked = false,
   }) async {
     final uid = _client.auth.currentUser!.id;
     await _client.from('vendors').upsert({
@@ -70,7 +82,26 @@ class VendorRepository {
       'base_price': basePrice,
       'portfolio_urls': portfolioUrls,
       'meta': meta,
+      if (tagline != null && tagline.isNotEmpty) 'tagline': tagline,
+      if (phone != null && phone.isNotEmpty) 'phone': phone,
+      if (whatsapp != null && whatsapp.isNotEmpty) 'whatsapp': whatsapp,
+      if (address != null && address.isNotEmpty) 'address': address,
+      'years_experience': yearsExperience,
+      'service_cities': serviceCities,
+      'languages': languages,
+      if (instagramUrl != null && instagramUrl.isNotEmpty) 'instagram_url': instagramUrl,
+      if (youtubeUrl != null && youtubeUrl.isNotEmpty) 'youtube_url': youtubeUrl,
+      if (facebookUrl != null && facebookUrl.isNotEmpty) 'facebook_url': facebookUrl,
+      'max_events_per_day': maxEventsPerDay,
+      'fully_booked': fullyBooked,
     });
+  }
+
+  Future<void> incrementProfileViews(String vendorId) async {
+    try {
+      await _client.rpc('increment_profile_views',
+          params: {'vendor_uuid': vendorId});
+    } catch (_) {}
   }
 
   Future<Vendor?> myVendor() async {
@@ -200,13 +231,15 @@ class MessageRepository {
       .order('created_at')
       .map((rows) => rows.map(Message.fromRow).toList());
 
-  Future<void> send(String bookingId, String receiverId, String content) async {
+  Future<void> send(String bookingId, String receiverId, String content,
+      {String? imageUrl}) async {
     final uid = _client.auth.currentUser!.id;
     await _client.from('messages').insert({
       'booking_id': bookingId,
       'sender_id': uid,
       'receiver_id': receiverId,
       'content': content,
+      'image_url': imageUrl,
     });
   }
 

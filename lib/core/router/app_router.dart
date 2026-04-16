@@ -1,10 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/models.dart';
-import '../../features/admin/admin_shell.dart';
 import '../../features/auth/email_otp_screen.dart';
 import '../../features/auth/role_selection_screen.dart';
 import '../../features/auth/sign_in_screen.dart';
@@ -15,6 +16,9 @@ import '../../features/client/checklist_screen.dart';
 import '../../features/client/client_shell.dart';
 import '../../features/client/compare_vendors_screen.dart';
 import '../../features/client/edit_profile_screen.dart';
+import '../../features/client/booking_detail_screen.dart';
+import '../../features/client/budget_estimator_screen.dart';
+import '../../features/client/guest_invite_screen.dart';
 import '../../features/client/faq_screen.dart';
 import '../../features/client/privacy_policy_screen.dart';
 import '../../features/client/referral_screen.dart';
@@ -89,6 +93,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        path: '/booking/detail/:bookingId',
+        builder: (_, state) => BookingDetailScreen(
+          bookingId: state.pathParameters['bookingId']!,
+        ),
+      ),
+      GoRoute(
         path: '/checklist/:bookingId',
         builder: (_, state) => ChecklistScreen(
           bookingId: state.pathParameters['bookingId']!,
@@ -119,6 +129,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/privacy-policy', builder: (_, _) => const PrivacyPolicyScreen()),
       GoRoute(path: '/terms', builder: (_, _) => const TermsScreen()),
       GoRoute(path: '/compare', builder: (_, _) => const CompareVendorsScreen()),
+      GoRoute(path: '/budget-estimator', builder: (_, _) => const BudgetEstimatorScreen()),
+      GoRoute(
+        path: '/guest-invite/:bookingId',
+        builder: (_, state) => GuestInviteScreen(
+          bookingId: state.pathParameters['bookingId']!,
+        ),
+      ),
 
       // ── Vendor ──────────────────────────────────────────────────────────
       GoRoute(
@@ -131,8 +148,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/vendor/packages', builder: (_, _) => const VendorPackagesScreen()),
       GoRoute(path: '/vendor', builder: (_, _) => const VendorShell()),
 
-      // ── Admin ────────────────────────────────────────────────────────────
-      GoRoute(path: '/admin', builder: (_, _) => const AdminShell()),
+
     ],
     errorBuilder: (_, state) =>
         Scaffold(body: Center(child: Text('Route error: ${state.error}'))),
@@ -144,7 +160,7 @@ class GoRouterRefreshStream extends ChangeNotifier {
     notifyListeners();
     _sub = stream.asBroadcastStream().listen((_) => notifyListeners());
   }
-  late final _sub;
+  late final StreamSubscription<dynamic> _sub;
   @override
   void dispose() {
     _sub.cancel();

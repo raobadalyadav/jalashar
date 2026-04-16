@@ -237,17 +237,17 @@ class _PackageCard extends StatelessWidget {
                 spacing: 6,
                 runSpacing: 4,
                 children: package.features
-                    .map((f) => Container(
+                    .map((f) => Builder(builder: (ctx) => Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: AppColors.violetSoft,
+                            color: ctx.softSurface,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(f,
                               style: const TextStyle(
                                   fontSize: 11, color: AppColors.violet)),
-                        ))
+                        )))
                     .toList(),
               ),
             ],

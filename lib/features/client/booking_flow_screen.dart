@@ -295,7 +295,7 @@ class _StepDate extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: selected != null
                       ? Colors.white.withValues(alpha: 0.2)
-                      : AppColors.violetSoft,
+                      : context.softSurface,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(Icons.calendar_today_rounded,
@@ -559,7 +559,7 @@ class _StepReview extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppColors.violetSoft,
+                      color: context.softSurface,
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: const Text('Free',

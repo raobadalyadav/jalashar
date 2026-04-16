@@ -145,12 +145,12 @@ class ReferralScreen extends ConsumerWidget {
   }
 
   Widget _step(String n, String title, String desc) => ListTile(
-        leading: CircleAvatar(
-          backgroundColor: AppColors.violetSoft,
+        leading: Builder(builder: (ctx) => CircleAvatar(
+          backgroundColor: ctx.softSurface,
           child: Text(n,
-              style: const TextStyle(
-                  color: AppColors.violetDeep, fontWeight: FontWeight.w700)),
-        ),
+              style: TextStyle(
+                  color: ctx.isDark ? Colors.white : AppColors.violetDeep, fontWeight: FontWeight.w700)),
+        )),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(desc),
       );

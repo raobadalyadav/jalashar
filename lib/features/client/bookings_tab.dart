@@ -226,8 +226,11 @@ class _BookingCardState extends ConsumerState<_BookingCard> {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+      child: InkWell(
+        onTap: () => context.push('/booking/detail/${b.id}'),
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -337,6 +340,17 @@ class _BookingCardState extends ConsumerState<_BookingCard> {
                       visualDensity: VisualDensity.compact),
                 ),
 
+                // Invite Guests (confirmed upcoming only)
+                if (b.status == BookingStatus.confirmed && isUpcoming)
+                  OutlinedButton.icon(
+                    onPressed: () =>
+                        context.push('/guest-invite/${b.id}'),
+                    icon: const Icon(Icons.group_add_outlined, size: 16),
+                    label: const Text('Invite Guests'),
+                    style: OutlinedButton.styleFrom(
+                        visualDensity: VisualDensity.compact),
+                  ),
+
                 // Chat
                 if (b.vendorId != null)
                   OutlinedButton.icon(
@@ -382,6 +396,7 @@ class _BookingCardState extends ConsumerState<_BookingCard> {
               ],
             ),
           ],
+        ),
         ),
       ),
     );

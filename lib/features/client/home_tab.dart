@@ -7,12 +7,19 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/auth/auth_controller.dart';
 import '../../core/data/content_repositories.dart';
 import '../../core/data/repositories.dart';
 import '../../core/models/extra_models.dart';
 import '../../core/models/models.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
+
+// Featured vendors from top-rated list
+final _featuredVendorsProvider = FutureProvider<List<Vendor>>((ref) async {
+  final list = await ref.watch(vendorRepoProvider).list();
+  return list.where((v) => v.isFeatured || v.ratingAvg >= 4.5).take(8).toList();
+});
 
 class HomeTab extends ConsumerWidget {
   const HomeTab({super.key});
@@ -21,12 +28,40 @@ class HomeTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final services = ref.watch(servicesProvider);
     final categories = ref.watch(categoriesProvider);
+    final user = ref.watch(currentUserProvider);
+    final isDark = context.isDark;
+
     return Scaffold(
       body: CustomScrollView(
         slivers: [
+          // ── App bar ───────────────────────────────────────────────────
           SliverAppBar(
             floating: true,
-            title: Text('home.greeting'.tr()),
+            titleSpacing: 16,
+            title: user.when(
+              data: (u) => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _greeting(),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? Colors.white60 : AppColors.slate,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                  Text(
+                    u?.name != null ? u!.name! : 'home.greeting'.tr(),
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.w700),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+              loading: () => Text('home.greeting'.tr()),
+              error: (e, st) => Text('home.greeting'.tr()),
+            ),
             actions: [
               IconButton(
                 icon: const Icon(Icons.notifications_outlined),
@@ -35,7 +70,7 @@ class HomeTab extends ConsumerWidget {
             ],
           ),
 
-          // Search bar
+          // ── Search bar ────────────────────────────────────────────────
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
@@ -47,6 +82,16 @@ class HomeTab extends ConsumerWidget {
                     decoration: InputDecoration(
                       hintText: 'home.search_hint'.tr(),
                       prefixIcon: const Icon(Icons.search),
+                      suffixIcon: Container(
+                        margin: const EdgeInsets.all(6),
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: AppColors.violet,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.tune_rounded,
+                            color: Colors.white, size: 16),
+                      ),
                     ),
                   ),
                 ),
@@ -54,21 +99,146 @@ class HomeTab extends ConsumerWidget {
             ),
           ),
 
-          // Banner carousel
+          // ── Event type quick pickers ──────────────────────────────────
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: SizedBox(
+                height: 38,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: _eventTypes.map((e) {
+                    return GestureDetector(
+                      onTap: () =>
+                          context.push('/search?eventType=${e.$1}'),
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [AppColors.violet, AppColors.violetDeep],
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color:
+                                  AppColors.violet.withValues(alpha: 0.25),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(e.$2, style: const TextStyle(fontSize: 14)),
+                            const SizedBox(width: 4),
+                            Text(
+                              e.$1,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ).animate().fadeIn(delay: 50.ms),
+          ),
+
+          // ── Banner carousel ───────────────────────────────────────────
           const SliverToBoxAdapter(child: _BannerCarousel()),
 
-          // Categories
+          // ── Featured Vendors ──────────────────────────────────────────
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-              child: Text('home.categories'.tr(),
-                  style: Theme.of(context).textTheme.titleLarge),
+              child: Row(children: [
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Featured Vendors',
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.w700)),
+                      Text('Top-rated & trusted professionals',
+                          style: TextStyle(
+                              color: AppColors.slate, fontSize: 12)),
+                    ],
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => context.push('/search'),
+                  child: const Text('See All'),
+                ),
+              ]),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Consumer(
+              builder: (ctx, ref, child) {
+                final vendors = ref.watch(_featuredVendorsProvider);
+                return vendors.when(
+                  loading: () => SizedBox(
+                    height: 190,
+                    child: ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      scrollDirection: Axis.horizontal,
+                      itemCount: 4,
+                      separatorBuilder: (c, i) =>
+                          const SizedBox(width: 12),
+                      itemBuilder: (c, i) =>
+                          const _VendorCardSkeleton(),
+                    ),
+                  ),
+                  error: (e, st) => const SizedBox.shrink(),
+                  data: (list) => list.isEmpty
+                      ? const SizedBox.shrink()
+                      : SizedBox(
+                          height: 190,
+                          child: ListView.separated(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16),
+                            scrollDirection: Axis.horizontal,
+                            itemCount: list.length,
+                            separatorBuilder: (c, i) =>
+                                const SizedBox(width: 12),
+                            itemBuilder: (_, i) =>
+                                _FeaturedVendorCard(v: list[i]),
+                          ),
+                        ),
+                );
+              },
+            ),
+          ),
+
+          // ── Categories ────────────────────────────────────────────────
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+              child: Row(children: [
+                Expanded(
+                  child: Text('home.categories'.tr(),
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.w700)),
+                ),
+                TextButton(
+                  onPressed: () => context.push('/search'),
+                  child: const Text('Browse All'),
+                ),
+              ]),
             ),
           ),
           SliverToBoxAdapter(
             child: categories.when(
               loading: () => const _CategoryRow(items: []),
-              error: (_, __) => const _CategoryRow(items: []),
+              error: (e, st) => const _CategoryRow(items: []),
               data: (cats) => _CategoryRow(
                 items: cats
                     .map((c) => (c.name, c.slug, _categoryIcon(c.slug)))
@@ -77,14 +247,53 @@ class HomeTab extends ConsumerWidget {
             ),
           ),
 
-          // Services
+          // ── Quick Tools ───────────────────────────────────────────────
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Planning Tools',
+                      style: TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 12),
+                  Row(children: [
+                    Expanded(
+                      child: _QuickToolCard(
+                        icon: Icons.calculate_outlined,
+                        title: 'Budget\nEstimator',
+                        subtitle: 'Plan your event cost',
+                        color: AppColors.violet,
+                        onTap: () =>
+                            context.push('/budget-estimator'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _QuickToolCard(
+                        icon: Icons.compare_arrows_rounded,
+                        title: 'Compare\nVendors',
+                        subtitle: 'Side-by-side view',
+                        color: AppColors.gold,
+                        onTap: () => context.push('/compare'),
+                      ),
+                    ),
+                  ]),
+                ],
+              ),
+            ),
+          ),
+
+          // ── Packages ─────────────────────────────────────────────────
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
               child: Row(children: [
-                Expanded(
+                const Expanded(
                   child: Text('Packages',
-                      style: Theme.of(context).textTheme.titleLarge),
+                      style: TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.w700)),
                 ),
                 TextButton(
                   onPressed: () => context.push('/search'),
@@ -108,11 +317,28 @@ class HomeTab extends ConsumerWidget {
               itemBuilder: (_, i) => _ServiceCard(service: list[i]),
             ),
           ),
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+
+          const SliverToBoxAdapter(child: SizedBox(height: 32)),
         ],
       ),
     );
   }
+
+  static String _greeting() {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'Good Morning ☀️';
+    if (h < 17) return 'Good Afternoon 🌤️';
+    return 'Good Evening 🌙';
+  }
+
+  static const _eventTypes = [
+    ('Wedding', '💍'),
+    ('Birthday', '🎂'),
+    ('Corporate', '💼'),
+    ('Engagement', '💞'),
+    ('Anniversary', '🎊'),
+    ('Festival', '🎉'),
+  ];
 
   static IconData _categoryIcon(String slug) => switch (slug) {
         'photographer' => Icons.camera_alt,
@@ -129,7 +355,176 @@ class HomeTab extends ConsumerWidget {
       };
 }
 
-// ── Banner Carousel ─────────────────────────────────────────────────────────
+// ── Featured vendor card ─────────────────────────────────────────────────────
+
+class _FeaturedVendorCard extends StatelessWidget {
+  const _FeaturedVendorCard({required this.v});
+  final Vendor v;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.push('/vendor-detail/${v.id}', extra: v),
+      child: Container(
+        width: 150,
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.violet.withValues(alpha: 0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image / avatar
+            ClipRRect(
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(16)),
+              child: Stack(
+                children: [
+                  v.portfolioUrls.isNotEmpty
+                      ? CachedNetworkImage(
+                          imageUrl: v.portfolioUrls.first,
+                          width: 150,
+                          height: 100,
+                          fit: BoxFit.cover,
+                          errorWidget: (c, u, e) =>
+                              _VendorImgFallback(name: v.name ?? v.category),
+                        )
+                      : _VendorImgFallback(name: v.name ?? v.category),
+                  // Featured badge
+                  if (v.isFeatured)
+                    Positioned(
+                      top: 6,
+                      left: 6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.gold,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text('⭐ Featured',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                  // Verified badge
+                  if (v.isVerified)
+                    Positioned(
+                      top: 6,
+                      right: 6,
+                      child: Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: const BoxDecoration(
+                            color: AppColors.success,
+                            shape: BoxShape.circle),
+                        child: const Icon(Icons.verified,
+                            color: Colors.white, size: 10),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    v.name ?? v.category,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600, fontSize: 13),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    v.category,
+                    style: const TextStyle(
+                        color: AppColors.slate, fontSize: 11),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(children: [
+                    const Icon(Icons.star_rounded,
+                        color: AppColors.gold, size: 12),
+                    const SizedBox(width: 2),
+                    Text(
+                      v.ratingAvg.toStringAsFixed(1),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700, fontSize: 11),
+                    ),
+                    const Spacer(),
+                    if (v.basePrice != null)
+                      Text(
+                        '₹${(v.basePrice! / 1000).toStringAsFixed(0)}k+',
+                        style: const TextStyle(
+                            color: AppColors.violet,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 11),
+                      ),
+                  ]),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _VendorImgFallback extends StatelessWidget {
+  const _VendorImgFallback({required this.name});
+  final String name;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 150,
+      height: 100,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppColors.violetDeep, AppColors.violet],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        name.isNotEmpty ? name[0].toUpperCase() : 'V',
+        style: const TextStyle(
+            color: Colors.white,
+            fontSize: 32,
+            fontWeight: FontWeight.w800),
+      ),
+    );
+  }
+}
+
+class _VendorCardSkeleton extends StatelessWidget {
+  const _VendorCardSkeleton();
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 150,
+      decoration: BoxDecoration(
+        color: context.softSurface,
+        borderRadius: BorderRadius.circular(16),
+      ),
+    )
+        .animate(onPlay: (c) => c.repeat(reverse: true))
+        .shimmer(duration: 1200.ms, color: AppColors.violet.withValues(alpha: 0.1));
+  }
+}
+
+// ── Banner Carousel ──────────────────────────────────────────────────────────
 
 class _BannerCarousel extends ConsumerStatefulWidget {
   const _BannerCarousel();
@@ -166,7 +561,7 @@ class _BannerCarouselState extends ConsumerState<_BannerCarousel> {
     final banners = ref.watch(bannersProvider);
     return banners.when(
       loading: () => _StaticBanner(),
-      error: (_, __) => _StaticBanner(),
+      error: (e, st) => _StaticBanner(),
       data: (list) {
         if (list.isEmpty) return _StaticBanner();
         WidgetsBinding.instance
@@ -226,11 +621,10 @@ class _BannerItem extends StatelessWidget {
             CachedNetworkImage(
               imageUrl: banner.imageUrl!,
               fit: BoxFit.cover,
-              errorWidget: (_, __, ___) => _GradientBg(),
+              errorWidget: (c, u, e) => _GradientBg(),
             )
           else
             _GradientBg(),
-          // Overlay for text visibility
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -263,7 +657,8 @@ class _BannerItem extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     banner.subtitle!,
-                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    style: const TextStyle(
+                        color: Colors.white70, fontSize: 12),
                   ),
                 ],
               ],
@@ -349,29 +744,32 @@ class _CategoryRow extends StatelessWidget {
     ('Corporate', 'corporate', Icons.business_center),
     ('Engagement', 'engagement', Icons.diamond),
     ('Festival', 'festival', Icons.celebration),
+    ('Mehendi', 'mehendi', Icons.pan_tool),
   ];
 
   @override
   Widget build(BuildContext context) {
     final display = items.isNotEmpty ? items : _fallback;
     return SizedBox(
-      height: 100,
+      height: 105,
       child: ListView.separated(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         scrollDirection: Axis.horizontal,
         itemCount: display.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 12),
+        separatorBuilder: (c, i) => const SizedBox(width: 10),
         itemBuilder: (_, i) {
           final (label, slug, icon) = display[i];
           return InkWell(
             onTap: () => context.push('/search?category=$slug'),
             borderRadius: BorderRadius.circular(16),
             child: Container(
-              width: 80,
+              width: 78,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
-                color: AppColors.violetSoft,
-                border: Border.all(color: Colors.transparent),
+                // Use theme-aware color instead of hard-coded violetSoft
+                color: context.softSurface,
+                border: Border.all(
+                    color: AppColors.violet.withValues(alpha: 0.15)),
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -379,16 +777,19 @@ class _CategoryRow extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppColors.violet.withValues(alpha: 0.08),
+                      color: AppColors.violet.withValues(alpha: 0.12),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(icon, color: AppColors.violet, size: 24),
+                    child:
+                        Icon(icon, color: AppColors.violet, size: 22),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     label,
-                    style: const TextStyle(
-                        fontSize: 11, fontWeight: FontWeight.w500),
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: context.onSoftSurface),
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -403,7 +804,75 @@ class _CategoryRow extends StatelessWidget {
   }
 }
 
-// ── Service Icon Fallback ─────────────────────────────────────────────────────
+// ── Quick Tool Card ───────────────────────────────────────────────────────────
+
+class _QuickToolCard extends StatelessWidget {
+  const _QuickToolCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    required this.color,
+  });
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              color,
+              Color.fromARGB(
+                255,
+                (color.r * 0.7).round(),
+                (color.g * 0.7).round(),
+                (color.b * 0.7).round(),
+              ),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: Colors.white, size: 28),
+            const SizedBox(height: 10),
+            Text(title,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    height: 1.2)),
+            const SizedBox(height: 4),
+            Text(subtitle,
+                style: const TextStyle(
+                    color: Colors.white70, fontSize: 11)),
+          ],
+        ),
+      ),
+    ).animate().fadeIn(delay: 60.ms);
+  }
+}
+
+// ── Service fallback icon ─────────────────────────────────────────────────────
 
 class _ServiceIconFallback extends StatelessWidget {
   const _ServiceIconFallback({required this.name});
@@ -426,7 +895,9 @@ class _ServiceIconFallback extends StatelessWidget {
       child: Text(
         initial,
         style: const TextStyle(
-            color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700),
+            color: Colors.white,
+            fontSize: 22,
+            fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -440,76 +911,90 @@ class _ServiceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         onTap: () => context.push('/service/${service.slug}', extra: service),
         child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: service.imageUrl != null
-                      ? CachedNetworkImage(
-                          imageUrl: service.imageUrl!,
-                          width: 56,
-                          height: 56,
-                          fit: BoxFit.cover,
-                          errorWidget: (_, __, ___) => _ServiceIconFallback(
-                              name: service.name),
-                        )
-                      : _ServiceIconFallback(name: service.name),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(service.name,
-                          style: Theme.of(context).textTheme.titleMedium),
-                      if (service.planningDuration != null)
-                        Text(service.planningDuration!,
-                            style: Theme.of(context).textTheme.bodySmall),
-                    ],
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(Fmt.currency(service.basePrice),
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.violet,
-                            fontSize: 15)),
-                    const Text('onwards',
-                        style:
-                            TextStyle(fontSize: 10, color: AppColors.slate)),
+          padding: const EdgeInsets.all(14),
+          child: Row(children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: service.imageUrl != null
+                  ? CachedNetworkImage(
+                      imageUrl: service.imageUrl!,
+                      width: 60,
+                      height: 60,
+                      fit: BoxFit.cover,
+                      errorWidget: (c, u, e) =>
+                          _ServiceIconFallback(name: service.name),
+                    )
+                  : _ServiceIconFallback(name: service.name),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(service.name,
+                      style: Theme.of(context).textTheme.titleMedium),
+                  if (service.planningDuration != null)
+                    Text(service.planningDuration!,
+                        style: Theme.of(context).textTheme.bodySmall),
+                  if (service.features.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 4,
+                      runSpacing: 4,
+                      children: service.features.take(3).map((f) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: context.softSurface,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(f,
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  color: context.onSoftSurface)),
+                        );
+                      }).toList(),
+                    ),
                   ],
-                ),
-              ]),
-              if (service.features.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: service.features
-                      .take(4)
-                      .map((f) => Chip(
-                            label: Text(f,
-                                style: const TextStyle(fontSize: 11)),
-                            materialTapTargetSize:
-                                MaterialTapTargetSize.shrinkWrap,
-                            visualDensity: VisualDensity.compact,
-                          ))
-                      .toList(),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(Fmt.currency(service.basePrice),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.violet,
+                        fontSize: 15)),
+                const Text('onwards',
+                    style: TextStyle(
+                        fontSize: 10, color: AppColors.slate)),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.violet,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text('Book',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700)),
                 ),
               ],
-            ],
-          ),
+            ),
+          ]),
         ),
       ),
     );

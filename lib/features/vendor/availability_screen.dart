@@ -63,14 +63,14 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
               children: [
                 Container(
                   padding: const EdgeInsets.all(16),
-                  color: AppColors.violetSoft,
-                  child: Row(children: const [
-                    Icon(Icons.info_outline, color: AppColors.violetDeep),
-                    SizedBox(width: 12),
+                  color: context.softSurface,
+                  child: Row(children: [
+                    Icon(Icons.info_outline, color: Theme.of(context).colorScheme.primary),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         'Tap any date to block/unblock. Blocked dates hide you from client searches for that day.',
-                        style: TextStyle(color: AppColors.violetDeep),
+                        style: TextStyle(color: context.onSoftSurface),
                       ),
                     ),
                   ]),
@@ -183,8 +183,8 @@ class _MiniCalendar extends StatelessWidget {
                       : isToday(date)
                           ? AppColors.violet
                           : past
-                              ? Colors.grey.shade200
-                              : AppColors.violetSoft,
+                              ? (context.isDark ? const Color(0xFF2A2840) : Colors.grey.shade200)
+                              : context.softSurface,
                 ),
                 alignment: Alignment.center,
                 child: Text(
@@ -194,7 +194,7 @@ class _MiniCalendar extends StatelessWidget {
                         ? Colors.white
                         : past
                             ? AppColors.slate
-                            : AppColors.violetDeep,
+                            : context.onSoftSurface,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

@@ -79,7 +79,7 @@ class ChecklistScreen extends ConsumerWidget {
                     child: LinearProgressIndicator(
                       value: progress,
                       minHeight: 10,
-                      backgroundColor: AppColors.violetSoft,
+                      backgroundColor: context.softSurface,
                       valueColor:
                           const AlwaysStoppedAnimation(AppColors.violet),
                     ),
